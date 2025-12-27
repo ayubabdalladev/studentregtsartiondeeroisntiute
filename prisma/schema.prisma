@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+enum Role {
+  ADMIN
+  TEACHER
+}
+enum PaymentStatus {
+  PAID
+  UNPAID
+}
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String   @unique
+  password  String   // hashed
+  role      Role     @default(TEACHER)
+  isActive  Boolean  @default(true)
+
+  // Teacher assignment: teacher can have multiple classes
+  classes   Class[]  @relation("TeacherClasses")
+  attendances Attendance[] @relation("AttendanceTeacher")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Class {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String    // e.g. "Class A"
+  level     String?   // optional: "Level 1"
+  isActive  Boolean   @default(true)
+
+  teacherId String?   @db.ObjectId
+  teacher   User?     @relation("TeacherClasses", fields: [teacherId], references: [id])
+
+  students  Student[]
+  attendances Attendance[] @relation("AttendanceClass")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+model Student {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  firstName     String
+  lastName      String
+  phone         String?
+  email         String?
+  gender        String?
+  paymentStatus PaymentStatus @default(UNPAID)
+  isActive      Boolean       @default(true)
+
+  classId       String?       @db.ObjectId
+  class         Class?        @relation(fields: [classId], references: [id])
+
+  attendances   Attendance[]
+  payments      Payment[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([classId])
+  @@index([paymentStatus])
+}
+model Attendance {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  date      DateTime         // store the day
+  status    AttendanceStatus
+  note      String?
+
+  studentId String           @db.ObjectId
+  student   Student          @relation(fields: [studentId], references: [id])
+
+  classId   String           @db.ObjectId
+  class     Class            @relation("AttendanceClass", fields: [classId], references: [id])
+
+  teacherId String?          @db.ObjectId
+  teacher   User?            @relation("AttendanceTeacher", fields: [teacherId], references: [id])
+
+  createdAt DateTime         @default(now())
+
+  @@index([date])
+  @@index([classId, date])
+  @@index([studentId, date])
+}
+model Payment {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  amount     Float
+  currency   String      @default("USD")
+  paidAt     DateTime    @default(now())
+  note       String?
+
+  studentId  String      @db.ObjectId
+  student    Student     @relation(fields: [studentId], references: [id])
+
+  createdAt  DateTime    @default(now())
+
+  @@index([paidAt])
+  @@index([studentId])
+}
