@@ -17,6 +17,7 @@ const adminMenuItems = [
   { href: "/teachers", label: "Teachers", icon: Users },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/classes", label: "Classes", icon: School },
+  { href: "/attendance-management", label: "Attendance", icon: Calendar },
   { href: "/payments", label: "Payments", icon: DollarSign },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/messages", label: "Messages", icon: Mail },

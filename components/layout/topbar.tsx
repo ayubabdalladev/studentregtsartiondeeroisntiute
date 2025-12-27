@@ -17,6 +17,7 @@ export default function TopBar({ sidebarOpen, onSidebarToggle, darkMode, onDarkM
   const derivedTitle = useMemo(() => {
     if (title) return title
     if (pathname.startsWith("/classes")) return "Classes"
+    if (pathname.startsWith("/attendance-management")) return "Attendance"
     if (pathname.startsWith("/students")) return "Students"
     if (pathname.startsWith("/teachers")) return "Teachers"
     if (pathname.startsWith("/courses")) return "Courses"
