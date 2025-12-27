@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
+function getJwtSecret() {
+  const value = process.env.JWT_SECRET
+  if (!value) return null
+  return new TextEncoder().encode(value)
+}
 
 // Route rules
 const ADMIN_ONLY = [
@@ -36,6 +40,11 @@ export async function middleware(req: NextRequest) {
   // Block unauthenticated users
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  const secret = getJwtSecret()
+  if (!secret) {
+    return NextResponse.redirect(new URL("/login?error=server_config", req.url))
   }
 
   try {

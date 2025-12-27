@@ -3,9 +3,13 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { getDb } from "@/lib/mongodb";
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
-
 export async function POST(req: Request) {
+  const jwtSecret = process.env.JWT_SECRET
+  if (!jwtSecret) {
+    return NextResponse.json({ message: "Server misconfigured" }, { status: 500 })
+  }
+  const secret = new TextEncoder().encode(jwtSecret)
+
   const { email, password } = await req.json();
 
   if (!email || !password) {
