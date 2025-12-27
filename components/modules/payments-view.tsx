@@ -165,9 +165,9 @@ export default function PaymentsView() {
             <TableHeader>
               <TableRow>
                 <TableHead>Student</TableHead>
-                <TableHead>Class</TableHead>
+                <TableHead className="hidden md:table-cell">Class</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead className="hidden md:table-cell">Date</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -175,13 +175,20 @@ export default function PaymentsView() {
               {payments.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">
-                    {payment.student ? `${payment.student.firstName} ${payment.student.lastName}` : "—"}
+                    <div className="space-y-0.5">
+                      <div className="truncate">
+                        {payment.student ? `${payment.student.firstName} ${payment.student.lastName}` : "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground md:hidden">
+                        {payment.student?.class?.name ?? "—"} • {new Date(payment.paidAt).toLocaleDateString()}
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell>{payment.student?.class?.name ?? "—"}</TableCell>
+                  <TableCell className="hidden md:table-cell">{payment.student?.class?.name ?? "—"}</TableCell>
                   <TableCell>
                     {payment.currency} {payment.amount.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Badge>PAID</Badge>
                   </TableCell>
@@ -255,4 +262,3 @@ export default function PaymentsView() {
     </div>
   )
 }
-

@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb"
 import { getDb } from "@/lib/mongodb"
 import { getSessionFromRequestCookies } from "@/lib/auth"
 import { enqueueAndSendEmailMessage } from "@/lib/email-queue"
+import { buildBroadcastEmailTemplate } from "@/lib/email-templates"
 
 function toObjectId(id: string) {
   try {
@@ -34,22 +35,25 @@ export async function POST(req: NextRequest) {
 
   let resolvedClassId: string | null = null
   let resolvedCourseId: string | null = null
+  let contextSubtitle: string | null = null
 
   if (typeof courseId === "string" && courseId) {
     const oid = toObjectId(courseId)
     if (!oid) return NextResponse.json({ message: "Invalid courseId" }, { status: 400 })
-    const course = await db.collection("Course").findOne({ _id: oid }, { projection: { classId: 1 } })
+    const course = await db.collection("Course").findOne({ _id: oid }, { projection: { classId: 1, name: 1 } })
     if (!course) return NextResponse.json({ message: "Course not found" }, { status: 404 })
     resolvedCourseId = courseId
     resolvedClassId = (course.classId as string | null | undefined) ?? null
+    contextSubtitle = course.name ? `Course: ${course.name}` : "Course announcement"
   }
 
   if (!resolvedClassId && typeof classId === "string" && classId) {
     const oid = toObjectId(classId)
     if (!oid) return NextResponse.json({ message: "Invalid classId" }, { status: 400 })
-    const cls = await db.collection("Class").findOne({ _id: oid }, { projection: { _id: 1 } })
+    const cls = await db.collection("Class").findOne({ _id: oid }, { projection: { name: 1 } })
     if (!cls) return NextResponse.json({ message: "Class not found" }, { status: 404 })
     resolvedClassId = classId
+    contextSubtitle = cls.name ? `Class: ${cls.name}` : "Class announcement"
   }
 
   if (!resolvedClassId) return NextResponse.json({ message: "classId or courseId is required" }, { status: 400 })
@@ -60,12 +64,22 @@ export async function POST(req: NextRequest) {
     .project({ email: 1 })
     .toArray()
 
+  const template = buildBroadcastEmailTemplate({
+    subject: subject.trim(),
+    message: message.trim(),
+    contextTitle: subject.trim(),
+    contextSubtitle,
+    logoCid: "brandlogo",
+    brandName: process.env.EMAIL_BRAND_NAME ?? "Deero Institute",
+  })
+
   const results = await Promise.all(
     students.map((s) =>
       enqueueAndSendEmailMessage({
         to: (s.email as string | null | undefined) ?? null,
         subject: subject.trim(),
-        text: message.trim(),
+        text: template.text,
+        html: template.html,
         meta: { kind: "BROADCAST", initiatedBy: session.userId, classId: resolvedClassId!, courseId: resolvedCourseId },
       }),
     ),
@@ -85,4 +99,3 @@ export async function POST(req: NextRequest) {
     failed,
   })
 }
-

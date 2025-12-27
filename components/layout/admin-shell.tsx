@@ -22,7 +22,7 @@ export default function AdminShell({
 
   return (
     <div className={darkMode ? "dark" : ""}>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+      <div className="flex h-svh overflow-hidden bg-background text-foreground">
         {sidebarOpen && (
           <button
             type="button"
@@ -52,4 +52,3 @@ export default function AdminShell({
     </div>
   )
 }
-

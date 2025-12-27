@@ -276,7 +276,7 @@ export default function StudentsList() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Class</TableHead>
+                  <TableHead className="hidden md:table-cell">Class</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -293,9 +293,12 @@ export default function StudentsList() {
                         <div className="text-xs text-muted-foreground">
                           {student.email ?? "—"} {student.phone ? `• ${student.phone}` : ""}
                         </div>
+                        <div className="text-xs text-muted-foreground md:hidden">
+                          Class: {student.class?.name ?? "Unassigned"}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{student.class?.name ?? "Unassigned"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{student.class?.name ?? "Unassigned"}</TableCell>
                     <TableCell>
                       <Badge variant={student.paymentStatus === "PAID" ? "default" : "secondary"}>{student.paymentStatus}</Badge>
                     </TableCell>

@@ -210,7 +210,7 @@ export default function TeachersList() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead className="hidden md:table-cell">Email</TableHead>
                   <TableHead>Classes</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -219,8 +219,13 @@ export default function TeachersList() {
               <TableBody>
                 {filtered.map((teacher) => (
                   <TableRow key={teacher.id}>
-                    <TableCell className="font-medium">{teacher.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{teacher.email}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="space-y-0.5">
+                        <div className="truncate">{teacher.name}</div>
+                        <div className="text-xs text-muted-foreground md:hidden truncate">{teacher.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground">{teacher.email}</TableCell>
                     <TableCell>
                       {teacher.classes.length ? (
                         <div className="flex flex-wrap gap-2">

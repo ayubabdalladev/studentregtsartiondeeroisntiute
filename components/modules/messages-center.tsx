@@ -160,12 +160,12 @@ export default function MessagesCenter() {
         </Card>
       ) : (
         <Card className="p-4 sm:p-6 space-y-5">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
               <Badge variant="secondary">Channel</Badge>
               <span className="text-sm text-muted-foreground">Email</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <span className="text-xs text-muted-foreground">
                 Classes: {classes.length} • Courses: {courses.length}
               </span>

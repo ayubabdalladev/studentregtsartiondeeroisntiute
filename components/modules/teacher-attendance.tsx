@@ -127,7 +127,7 @@ export default function TeacherAttendance() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Attendance</h1>
           <p className="text-sm text-muted-foreground">Mark present/absent for your assigned classes.</p>
         </div>
-        <Button onClick={submit} disabled={submitting || loadingStudents || !selectedClassId}>
+        <Button className="w-full sm:w-auto" onClick={submit} disabled={submitting || loadingStudents || !selectedClassId}>
           {submitting ? (
             <>
               <Spinner className="mr-2" />
@@ -175,11 +175,11 @@ export default function TeacherAttendance() {
 
           <div className="space-y-2">
             <p className="text-sm font-medium">Quick Actions</p>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => markAll("PRESENT")} disabled={!students.length}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button className="w-full sm:w-auto" variant="secondary" onClick={() => markAll("PRESENT")} disabled={!students.length}>
                 Mark All Present
               </Button>
-              <Button variant="secondary" onClick={() => markAll("ABSENT")} disabled={!students.length}>
+              <Button className="w-full sm:w-auto" variant="secondary" onClick={() => markAll("ABSENT")} disabled={!students.length}>
                 Mark All Absent
               </Button>
             </div>
@@ -196,51 +196,92 @@ export default function TeacherAttendance() {
         ) : students.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">No students found for this class.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((s) => {
-                  const status = statusByStudentId[s.id] ?? "ABSENT"
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">{s.firstName} {s.lastName}</TableCell>
-                      <TableCell>
-                        <Badge variant={status === "PRESENT" ? "default" : "secondary"}>{status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant={status === "PRESENT" ? "default" : "secondary"}
-                            size="sm"
-                            onClick={() => setStatusByStudentId((cur) => ({ ...cur, [s.id]: "PRESENT" }))}
-                          >
-                            Present
-                          </Button>
-                          <Button
-                            variant={status === "ABSENT" ? "destructive" : "secondary"}
-                            size="sm"
-                            onClick={() => setStatusByStudentId((cur) => ({ ...cur, [s.id]: "ABSENT" }))}
-                          >
-                            Absent
-                          </Button>
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden p-4 space-y-3">
+              {students.map((s) => {
+                const status = statusByStudentId[s.id] ?? "ABSENT"
+                return (
+                  <Card key={s.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {s.firstName} {s.lastName}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                        <div className="mt-1">
+                          <Badge variant={status === "PRESENT" ? "default" : "secondary"}>{status}</Badge>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 w-44">
+                        <Button
+                          variant={status === "PRESENT" ? "default" : "secondary"}
+                          size="sm"
+                          onClick={() => setStatusByStudentId((cur) => ({ ...cur, [s.id]: "PRESENT" }))}
+                        >
+                          Present
+                        </Button>
+                        <Button
+                          variant={status === "ABSENT" ? "destructive" : "secondary"}
+                          size="sm"
+                          onClick={() => setStatusByStudentId((cur) => ({ ...cur, [s.id]: "ABSENT" }))}
+                        >
+                          Absent
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((s) => {
+                    const status = statusByStudentId[s.id] ?? "ABSENT"
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">
+                          {s.firstName} {s.lastName}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status === "PRESENT" ? "default" : "secondary"}>{status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant={status === "PRESENT" ? "default" : "secondary"}
+                              size="sm"
+                              onClick={() => setStatusByStudentId((cur) => ({ ...cur, [s.id]: "PRESENT" }))}
+                            >
+                              Present
+                            </Button>
+                            <Button
+                              variant={status === "ABSENT" ? "destructive" : "secondary"}
+                              size="sm"
+                              onClick={() => setStatusByStudentId((cur) => ({ ...cur, [s.id]: "ABSENT" }))}
+                            >
+                              Absent
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </Card>
     </div>
   )
 }
-

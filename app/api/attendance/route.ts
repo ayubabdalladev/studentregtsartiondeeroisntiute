@@ -4,6 +4,7 @@ import { getDb } from "@/lib/mongodb"
 import { getSessionFromRequestCookies } from "@/lib/auth"
 import { enqueueAndSendWhatsAppMessage, hasRecentAbsenceAlert } from "@/lib/whatsapp-queue"
 import { enqueueAndSendEmailMessage, hasRecentAbsenceEmailAlert } from "@/lib/email-queue"
+import { buildBroadcastEmailTemplate } from "@/lib/email-templates"
 
 export async function POST(req: Request) {
   const session = await getSessionFromRequestCookies()
@@ -149,10 +150,19 @@ export async function POST(req: Request) {
           const already = await hasRecentAbsenceEmailAlert({ studentId, classId, absentCount: threshold, withinDays: windowDays })
           if (already) return
           const info = emailMap.get(studentId) ?? { name: "Student", email: null }
+          const template = buildBroadcastEmailTemplate({
+            subject: "Attendance Alert",
+            message: msg,
+            contextTitle: "Attendance Alert",
+            contextSubtitle: `Class: ${classId}`,
+            logoCid: "brandlogo",
+            brandName: process.env.EMAIL_BRAND_NAME ?? "Deero Institute",
+          })
           await enqueueAndSendEmailMessage({
             to: info.email,
             subject: "Attendance Alert",
-            text: msg,
+            text: template.text,
+            html: template.html,
             meta: { kind: "ABSENCE_ALERT", studentId, classId, absentCount: threshold, windowDays },
           })
         }

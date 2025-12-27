@@ -273,9 +273,9 @@ export default function CoursesList() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Course Name</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Teacher</TableHead>
-                  <TableHead>Students</TableHead>
+                  <TableHead className="hidden md:table-cell">Class</TableHead>
+                  <TableHead className="hidden md:table-cell">Teacher</TableHead>
+                  <TableHead className="hidden lg:table-cell">Students</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -283,10 +283,17 @@ export default function CoursesList() {
               <TableBody>
                 {filteredCourses.map((course) => (
                   <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.name}</TableCell>
-                    <TableCell>{course.class?.name ?? "—"}</TableCell>
-                    <TableCell>{course.teacher?.name ?? "Unassigned"}</TableCell>
-                    <TableCell>{course.studentsCount.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="space-y-0.5">
+                        <div className="truncate">{course.name}</div>
+                        <div className="text-xs text-muted-foreground md:hidden">
+                          Class: {course.class?.name ?? "—"} • Teacher: {course.teacher?.name ?? "Unassigned"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{course.class?.name ?? "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{course.teacher?.name ?? "Unassigned"}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{course.studentsCount.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge
                         variant={

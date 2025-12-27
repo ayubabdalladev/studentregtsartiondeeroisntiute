@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer"
+import type { SendMailOptions } from "nodemailer"
+import fs from "node:fs"
+import path from "node:path"
 
 export type EmailSendResult =
   | { ok: true; messageId?: string }
@@ -38,6 +41,25 @@ export async function sendEmail(args: { to: string; subject: string; text: strin
     const from = requireEnv("EMAIL_FROM")
     const replyTo = process.env.EMAIL_REPLY_TO
     const transporter = createTransport()
+
+    const logoMode = (process.env.EMAIL_LOGO_MODE ?? "cid").toLowerCase()
+    const attachLogo = logoMode === "cid" && process.env.EMAIL_ATTACH_LOGO !== "false"
+    const preferredLogoPath = path.join(process.cwd(), "public", "logo email-01.png")
+    const fallbackLogoPath = path.join(process.cwd(), "public", "main logo-01.png")
+    const logoPath = fs.existsSync(preferredLogoPath) ? preferredLogoPath : fallbackLogoPath
+    const attachments: SendMailOptions["attachments"] =
+      attachLogo && args.html && fs.existsSync(logoPath)
+        ? [
+            {
+              filename: "logo.png",
+              path: logoPath,
+              cid: "brandlogo",
+              contentDisposition: "inline",
+              contentType: "image/png",
+            },
+          ]
+        : undefined
+
     const info = await transporter.sendMail({
       from,
       to: args.to,
@@ -45,6 +67,7 @@ export async function sendEmail(args: { to: string; subject: string; text: strin
       text: args.text,
       html: args.html ?? undefined,
       replyTo: replyTo || undefined,
+      attachments,
     })
     return { ok: true, messageId: info.messageId }
   } catch (e: any) {

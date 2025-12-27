@@ -11,6 +11,7 @@ export async function enqueueAndSendEmailMessage(args: {
   to: string | null
   subject: string
   text: string
+  html?: string | null  
   meta: EmailQueueMeta
 }) {
   const db = await getDb()
@@ -43,7 +44,7 @@ export async function enqueueAndSendEmailMessage(args: {
   })
 
   const id = inserted.insertedId
-  const result = await sendEmail({ to: email, subject: args.subject, text: args.text })
+  const result = await sendEmail({ to: email, subject: args.subject, text: args.text, html: args.html ?? null })
 
   if (result.ok) {
     await db.collection("EmailMessage").updateOne(
@@ -75,4 +76,3 @@ export async function hasRecentAbsenceEmailAlert(args: { studentId: string; clas
   })
   return Boolean(existing)
 }
-

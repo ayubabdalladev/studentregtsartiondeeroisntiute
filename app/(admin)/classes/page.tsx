@@ -241,9 +241,9 @@ export default function ClassesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Class Name</TableHead>
-                <TableHead>Level</TableHead>
+                <TableHead className="hidden md:table-cell">Level</TableHead>
                 <TableHead>Teacher</TableHead>
-                <TableHead className="text-right">Students</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Students</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -251,10 +251,17 @@ export default function ClassesPage() {
             <TableBody>
               {rows.map((cls) => (
                 <TableRow key={cls.id}>
-                  <TableCell className="font-medium">{cls.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{cls.level ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="space-y-0.5">
+                      <div className="truncate">{cls.name}</div>
+                      <div className="text-xs text-muted-foreground md:hidden">
+                        Level: {cls.level ?? "—"} • Students: {cls.studentsCount ?? 0}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">{cls.level ?? "—"}</TableCell>
                   <TableCell>{cls.teacher?.name ?? "Unassigned"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{cls.studentsCount ?? 0}</TableCell>
+                  <TableCell className="hidden md:table-cell text-right tabular-nums">{cls.studentsCount ?? 0}</TableCell>
                   <TableCell>
                     {cls.isActive ? (
                       <Badge className="bg-emerald-600 hover:bg-emerald-600/90">Active</Badge>
@@ -401,4 +408,3 @@ export default function ClassesPage() {
     </div>
   )
 }
-
