@@ -14,6 +14,14 @@ import { Badge } from "@/components/ui/badge"
 
 type ClassOption = { id: string; name: string; level: string | null; isActive: boolean }
 type CourseOption = { id: string; name: string; classId: string | null; status: string }
+type EmailLogRow = {
+  id: string
+  to: string | null
+  subject: string | null
+  status: string | null
+  error: string | null
+  createdAt: string | null
+}
 
 type TargetType = "CLASS" | "COURSE"
 
@@ -26,6 +34,7 @@ export default function MessagesCenter() {
   const [courses, setCourses] = useState<CourseOption[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   const [targetType, setTargetType] = useState<TargetType>("CLASS")
   const [classId, setClassId] = useState<string>("")
@@ -33,35 +42,42 @@ export default function MessagesCenter() {
 
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
+  const [failures, setFailures] = useState<EmailLogRow[]>([])
+  const [loadingFailures, setLoadingFailures] = useState(false)
+
+  const load = async (mode: "initial" | "refresh") => {
+    if (mode === "initial") setLoading(true)
+    if (mode === "refresh") setReloading(true)
+    try {
+      const [classesRes, coursesRes] = await Promise.all([
+        api.get<ClassOption[]>("/api/classes"),
+        api.get<any[]>("/api/courses"),
+      ])
+
+      const nextClasses = classesRes.data
+      const nextCourses = (Array.isArray(coursesRes.data) ? coursesRes.data : []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        classId: c.classId ?? null,
+        status: c.status ?? "ACTIVE",
+      }))
+
+      setClasses(nextClasses)
+      setCourses(nextCourses)
+
+      if (nextClasses.length) setClassId((cur) => cur || nextClasses[0].id)
+      if (nextCourses.length) setCourseId((cur) => cur || nextCourses[0].id)
+    } catch (e: any) {
+      toast({ title: "Failed to load data", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setLoading(false)
+      setReloading(false)
+    }
+  }
 
   useEffect(() => {
-    const run = async () => {
-      setLoading(true)
-      try {
-        const [classesRes, coursesRes] = await Promise.all([
-          api.get<ClassOption[]>("/api/classes"),
-          api.get<any[]>("/api/courses"),
-        ])
-
-        setClasses(classesRes.data)
-        setCourses(
-          coursesRes.data.map((c) => ({
-            id: c.id,
-            name: c.name,
-            classId: c.classId ?? null,
-            status: c.status ?? "ACTIVE",
-          })),
-        )
-
-        if (classesRes.data.length) setClassId((cur) => cur || classesRes.data[0].id)
-        if (coursesRes.data.length) setCourseId((cur) => cur || coursesRes.data[0].id)
-      } catch (e: any) {
-        toast({ title: "Failed to load data", description: getErrorMessage(e), variant: "destructive" })
-      } finally {
-        setLoading(false)
-      }
-    }
-    void run()
+    void load("initial")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const selectedHint = useMemo(() => {
@@ -109,10 +125,24 @@ export default function MessagesCenter() {
       })
       setSubject("")
       setMessage("")
+      setFailures([])
     } catch (e: any) {
       toast({ title: "Send failed", description: getErrorMessage(e), variant: "destructive" })
     } finally {
       setSending(false)
+    }
+  }
+
+  const loadFailures = async () => {
+    setLoadingFailures(true)
+    try {
+      const res = await api.get<EmailLogRow[]>("/api/notifications/email/logs?status=FAILED&limit=20")
+      setFailures(res.data)
+      if (!res.data.length) toast({ title: "No failures found", description: "Last 20 email sends have no FAILED status." })
+    } catch (e: any) {
+      toast({ title: "Failed to load logs", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setLoadingFailures(false)
     }
   }
 
@@ -135,8 +165,24 @@ export default function MessagesCenter() {
               <Badge variant="secondary">Channel</Badge>
               <span className="text-sm text-muted-foreground">Email</span>
             </div>
-            <div className="text-xs text-muted-foreground">{selectedHint}</div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                Classes: {classes.length} • Courses: {courses.length}
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => void load("refresh")} disabled={reloading}>
+                {reloading ? (
+                  <>
+                    <Spinner className="mr-2" />
+                    Refreshing...
+                  </>
+                ) : (
+                  "Refresh"
+                )}
+              </Button>
+            </div>
           </div>
+
+          {selectedHint ? <div className="text-xs text-muted-foreground">{selectedHint}</div> : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -184,7 +230,11 @@ export default function MessagesCenter() {
                     ))}
                   </SelectContent>
                 </Select>
-                {!courses.length && <p className="text-xs text-muted-foreground">Create a course first.</p>}
+                {!courses.length && (
+                  <p className="text-xs text-muted-foreground">
+                    No courses found. Create one in <a className="underline" href="/courses">Courses</a>, then press Refresh.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -207,7 +257,18 @@ export default function MessagesCenter() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={send} disabled={sending || loading}>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={loadFailures} disabled={sending || loading || loadingFailures}>
+                {loadingFailures ? (
+                  <>
+                    <Spinner className="mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "View Failures"
+                )}
+              </Button>
+              <Button onClick={send} disabled={sending || loading}>
               {sending ? (
                 <>
                   <Spinner className="mr-2" />
@@ -217,10 +278,23 @@ export default function MessagesCenter() {
                 "Send Message"
               )}
             </Button>
+            </div>
           </div>
+
+          {failures.length > 0 && (
+            <div className="rounded-lg border p-3 space-y-2">
+              <p className="text-sm font-medium">Recent failed emails</p>
+              <div className="space-y-2">
+                {failures.map((f) => (
+                  <div key={f.id} className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{f.to ?? "—"}</span> • {f.subject ?? "—"} • {f.error ?? "Unknown error"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>
   )
 }
-

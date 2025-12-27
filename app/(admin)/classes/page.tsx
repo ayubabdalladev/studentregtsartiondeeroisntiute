@@ -205,8 +205,8 @@ export default function ClassesPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Classes</h1>
-          <p className="text-muted-foreground">Create, update, and manage class assignments.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage Classes</h1>
+          <p className="text-muted-foreground">Create, update, and manage course assignments.</p>
         </div>
         <Button onClick={openCreate} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />

@@ -25,7 +25,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await api.post<{ role: "ADMIN" | "TEACHER" }>("/api/auth/login", { email, password })
+      const res = await api.post<{ role: "ADMIN" | "TEACHER" }>("/api/auth/login", {
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      })
       onLogin(res.data.role)
     } catch (error: any) {
       toast({

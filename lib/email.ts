@@ -19,6 +19,7 @@ function createTransport() {
   const host = requireEnv("SMTP_HOST")
   const port = Number(process.env.SMTP_PORT ?? "587")
   const secure = parseBool(process.env.SMTP_SECURE, port === 465)
+  const rejectUnauthorized = parseBool(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true)
 
   const user = requireEnv("SMTP_USER")
   const pass = requireEnv("SMTP_PASS")
@@ -28,6 +29,7 @@ function createTransport() {
     port,
     secure,
     auth: { user, pass },
+    tls: { rejectUnauthorized },
   })
 }
 
