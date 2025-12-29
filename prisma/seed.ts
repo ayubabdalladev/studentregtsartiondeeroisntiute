@@ -6,7 +6,7 @@ async function main() {
   const uri = process.env.DATABASE_URL
   if (!uri) throw new Error("DATABASE_URL is not set")
 
-  const adminPassword = await bcrypt.hash("admin123", 10)
+  const adminPassword = await bcrypt.hash("admin@deero123", 10)
   const teacherPassword = await bcrypt.hash("teacher123", 10)
 
   const client = new MongoClient(uri)
@@ -18,10 +18,10 @@ async function main() {
   const users = db.collection("User")
 
   await users.updateOne(
-    { email: "admin@school.com" },
+    { email: "admin@deeroinst6.com" },
     {
-      $setOnInsert: { password: adminPassword, createdAt: new Date() },
-      $set: { name: "System Admin", role: "ADMIN", isActive: true, updatedAt: new Date() },
+      $setOnInsert: { createdAt: new Date() },
+      $set: { name: "System Admin", role: "ADMIN", isActive: true, password: adminPassword, updatedAt: new Date() },
     },
     { upsert: true },
   )
