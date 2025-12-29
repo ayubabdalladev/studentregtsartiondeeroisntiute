@@ -209,105 +209,149 @@ export default function StudentsList() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Student Management</h1>
-          <p className="text-sm text-muted-foreground">Manage student records, class assignments, and payments.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Student Management</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage student records, class assignments, and payments.</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto bg-primary hover:bg-primary/90 flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" /> Add Student
+        <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
+          <Plus className="w-5 h-5" /> Add Student
         </Button>
       </div>
 
-      <Card className="p-4 sm:p-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 bg-card p-4 rounded-xl border shadow-sm items-end">
+        <div className="sm:col-span-2 lg:col-span-6 space-y-2">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search</Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search students..." className="pl-10" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Filter by Class</Label>
-            <Select value={filterClassId} onValueChange={setFilterClassId}>
-              <SelectTrigger>
-                <SelectValue placeholder="All classes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Filter by Payment</Label>
-            <Select value={filterPayment} onValueChange={setFilterPayment}>
-              <SelectTrigger>
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="PAID">Paid</SelectItem>
-                <SelectItem value="UNPAID">Unpaid</SelectItem>
-              </SelectContent>
-            </Select>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, email, or phone..."
+              className="pl-10 h-11 rounded-lg border-muted shadow-sm focus-visible:ring-primary/20"
+            />
           </div>
         </div>
-      </Card>
+
+        <div className="sm:col-span-1 lg:col-span-3 space-y-2">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Class</Label>
+          <Select value={filterClassId} onValueChange={setFilterClassId}>
+            <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
+              <SelectValue placeholder="All classes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Classes</SelectItem>
+              {classes.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="sm:col-span-1 lg:col-span-3 space-y-2">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment</Label>
+          <Select value={filterPayment} onValueChange={setFilterPayment}>
+            <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="PAID">Paid</SelectItem>
+              <SelectItem value="UNPAID">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {loading ? (
-        <Card className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
-          <Spinner />
-          Loading students...
+        <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
+          <Spinner className="w-8 h-8 text-primary" />
+          <p>Loading students...</p>
         </Card>
       ) : error ? (
-        <Card className="p-6 text-sm text-destructive">{error}</Card>
+        <Card className="p-6 text-sm bg-destructive/5 text-destructive border-destructive/20 shadow-sm">{error}</Card>
       ) : filtered.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">No students found.</Card>
+        <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
+          <div className="p-4 rounded-full bg-muted">
+            <Search className="w-8 h-8 opacity-50" />
+          </div>
+          <p className="text-lg font-medium">No students found</p>
+          <p className="text-sm">Try adjusting your filters or search query.</p>
+        </Card>
       ) : (
-        <Card className="overflow-hidden">
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Class</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground min-w-[200px]">Name</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell whitespace-nowrap">Class</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Payment</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</TableHead>
+                  <TableHead className="text-right pr-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium">
-                      <div className="space-y-0.5">
-                        <div>
+                  <TableRow key={student.id} className="group hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
+                    <TableCell className="py-4 pl-6 font-medium">
+                      <div className="space-y-1">
+                        <div className="text-base text-foreground font-semibold">
                           {student.firstName} {student.lastName}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {student.email ?? "—"} {student.phone ? `• ${student.phone}` : ""}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                          <span className="truncate max-w-[200px]">{student.email || "—"}</span>
+                          {student.phone && (
+                            <>
+                              <span className="hidden sm:inline text-muted-foreground/50">•</span>
+                              <span className="font-mono">{student.phone}</span>
+                            </>
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground md:hidden">
-                          Class: {student.class?.name ?? "Unassigned"}
+                        <div className="text-xs text-muted-foreground md:hidden pt-1">
+                          <Badge variant="outline" className="text-[10px] font-normal">{student.class?.name ?? "Unassigned"}</Badge>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{student.class?.name ?? "Unassigned"}</TableCell>
-                    <TableCell>
-                      <Badge variant={student.paymentStatus === "PAID" ? "default" : "secondary"}>{student.paymentStatus}</Badge>
+                    <TableCell className="hidden md:table-cell py-4">
+                      <div className="font-medium text-sm">
+                        {student.class?.name ?? <span className="text-muted-foreground/60 italic">Unassigned</span>}
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={student.isActive ? "default" : "secondary"}>{student.isActive ? "ACTIVE" : "INACTIVE"}</Badge>
+                    <TableCell className="py-4">
+                      <Badge
+                        variant="secondary"
+                        className={`rounded-full shadow-none px-3 font-semibold ${student.paymentStatus === "PAID"
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                          : "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
+                          }`}
+                      >
+                        {student.paymentStatus}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(student)} aria-label="Edit student">
+                    <TableCell className="py-4">
+                      <Badge
+                        variant="secondary"
+                        className={`rounded-full shadow-none px-3 font-semibold ${student.isActive
+                          ? "bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200"
+                          }`}
+                      >
+                        {student.isActive ? "ACTIVE" : "INACTIVE"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right py-4 pr-6">
+                      <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(student)}
+                          aria-label="Edit student"
+                          className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                        >
                           <Pencil className="w-4 h-4" />
                         </Button>
                         <Button
@@ -315,8 +359,9 @@ export default function StudentsList() {
                           size="icon"
                           onClick={() => setDeleteId(student.id)}
                           aria-label="Delete student"
+                          className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                         >
-                          <Trash2 className="w-4 h-4 text-destructive" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -325,7 +370,7 @@ export default function StudentsList() {
               </TableBody>
             </Table>
           </div>
-        </Card>
+        </div>
       )}
 
       <Dialog

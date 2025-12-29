@@ -34,9 +34,8 @@ export default function Sidebar({ isOpen, role, onNavigate }: SidebarProps) {
 
   return (
     <aside
-      className={`w-64 ${isOpen ? "md:w-64" : "md:w-20"} bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col h-svh md:h-screen fixed md:static inset-y-0 left-0 z-50 md:z-auto transform ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } md:translate-x-0`}
+      className={`w-64 ${isOpen ? "md:w-64" : "md:w-20"} bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col h-svh md:h-screen fixed md:static inset-y-0 left-0 z-50 md:z-auto transform ${isOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0`}
     >
       {/* Logo Section */}
       <div className="p-4 border-b border-sidebar-border">
@@ -59,11 +58,10 @@ export default function Sidebar({ isOpen, role, onNavigate }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                isActive
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent"
-              }`}
+                }`}
               title={!isOpen ? item.label : ""}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />

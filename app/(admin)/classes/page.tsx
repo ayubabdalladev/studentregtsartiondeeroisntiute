@@ -202,92 +202,111 @@ export default function ClassesPage() {
   const rows = useMemo(() => classes, [classes])
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage Classes</h1>
-          <p className="text-muted-foreground">Create, update, and manage course assignments.</p>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Manage Classes</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Create, update, and manage course assignments.</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Class
+        <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
+          <Plus className="w-5 h-5" /> Add Class
         </Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Spinner />
-          <span>Loading classes…</span>
+        <div className="flex flex-col items-center justify-center gap-4 py-12 text-muted-foreground border border-dashed rounded-xl bg-card/50">
+          <Spinner className="w-8 h-8 text-primary" />
+          <span>Loading classes...</span>
         </div>
       ) : error ? (
-        <div className="space-y-3">
-          <p className="text-sm text-destructive">{error}</p>
-          <Button variant="secondary" onClick={fetchClasses}>
+        <div className="space-y-4 p-6 border border-destructive/20 bg-destructive/5 rounded-xl">
+          <p className="text-sm text-destructive font-medium">{error}</p>
+          <Button variant="outline" size="sm" onClick={fetchClasses} className="border-destructive/30 hover:bg-destructive/10">
             Retry
           </Button>
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-lg border bg-card p-8 text-center">
-          <p className="text-foreground font-medium">No classes yet</p>
-          <p className="text-muted-foreground text-sm mt-1">Create your first class to get started.</p>
-          <Button className="mt-4" onClick={openCreate}>
+        <div className="rounded-xl border border-dashed bg-card/50 p-12 text-center flex flex-col items-center gap-4">
+          <div className="p-4 rounded-full bg-muted">
+            <Plus className="w-8 h-8 opacity-50" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-lg font-medium text-foreground">No classes yet</p>
+            <p className="text-muted-foreground text-sm">Create your first class to get started.</p>
+          </div>
+          <Button className="mt-2 rounded-full" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-2" />
             Add Class
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Class Name</TableHead>
-                <TableHead className="hidden md:table-cell">Level</TableHead>
-                <TableHead>Teacher</TableHead>
-                <TableHead className="hidden md:table-cell text-right">Students</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((cls) => (
-                <TableRow key={cls.id}>
-                  <TableCell className="font-medium">
-                    <div className="space-y-0.5">
-                      <div className="truncate">{cls.name}</div>
-                      <div className="text-xs text-muted-foreground md:hidden">
-                        Level: {cls.level ?? "—"} • Students: {cls.studentsCount ?? 0}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">{cls.level ?? "—"}</TableCell>
-                  <TableCell>{cls.teacher?.name ?? "Unassigned"}</TableCell>
-                  <TableCell className="hidden md:table-cell text-right tabular-nums">{cls.studentsCount ?? 0}</TableCell>
-                  <TableCell>
-                    {cls.isActive ? (
-                      <Badge className="bg-emerald-600 hover:bg-emerald-600/90">Active</Badge>
-                    ) : (
-                      <Badge variant="secondary">Inactive</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(cls)} aria-label="Edit class">
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteId(cls.id)}
-                        aria-label="Delete class"
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground min-w-[200px]">Class Name</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell whitespace-nowrap">Level</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Teacher</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell text-right whitespace-nowrap">Students</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</TableHead>
+                  <TableHead className="text-right pr-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.map((cls) => (
+                  <TableRow key={cls.id} className="group hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
+                    <TableCell className="py-4 pl-6 font-medium">
+                      <div className="space-y-0.5">
+                        <div className="text-base text-foreground font-semibold">{cls.name}</div>
+                        <div className="text-xs text-muted-foreground md:hidden flex flex-wrap gap-2">
+                          <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wide">Level: {cls.level ?? "—"}</span>
+                          <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wide">Students: {cls.studentsCount ?? 0}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell py-4 text-muted-foreground">{cls.level ?? "—"}</TableCell>
+                    <TableCell className="py-4 text-sm font-medium">{cls.teacher?.name ?? <span className="text-muted-foreground italic font-normal">Unassigned</span>}</TableCell>
+                    <TableCell className="hidden md:table-cell text-right py-4 tabular-nums">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted/50 border border-muted">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60"></span>
+                        {cls.studentsCount ?? 0}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      {cls.isActive ? (
+                        <Badge className="rounded-full shadow-none px-3 font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Active</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="rounded-full shadow-none px-3 font-semibold bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200">Inactive</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right py-4 pr-6">
+                      <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(cls)}
+                          aria-label="Edit class"
+                          className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(cls.id)}
+                          aria-label="Delete class"
+                          className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 

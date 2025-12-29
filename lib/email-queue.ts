@@ -1,17 +1,20 @@
 import { getDb } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
+import type { SendMailOptions } from "nodemailer"
 
 export type EmailMessageStatus = "PENDING" | "SENT" | "FAILED" | "SKIPPED"
 
 export type EmailQueueMeta =
   | { kind: "BROADCAST"; initiatedBy: string; classId: string; courseId?: string | null }
   | { kind: "ABSENCE_ALERT"; studentId: string; classId: string; absentCount: number; windowDays: number }
+  | { kind: "CERTIFICATE"; initiatedBy: string; classId: string; studentId: string }
 
 export async function enqueueAndSendEmailMessage(args: {
   to: string | null
   subject: string
   text: string
-  html?: string | null  
+  html?: string | null
+  attachments?: SendMailOptions["attachments"]
   meta: EmailQueueMeta
 }) {
   const db = await getDb()
@@ -44,7 +47,13 @@ export async function enqueueAndSendEmailMessage(args: {
   })
 
   const id = inserted.insertedId
-  const result = await sendEmail({ to: email, subject: args.subject, text: args.text, html: args.html ?? null })
+  const result = await sendEmail({
+    to: email,
+    subject: args.subject,
+    text: args.text,
+    html: args.html ?? null,
+    attachments: args.attachments,
+  })
 
   if (result.ok) {
     await db.collection("EmailMessage").updateOne(

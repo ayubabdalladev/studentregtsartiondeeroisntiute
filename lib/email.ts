@@ -36,7 +36,13 @@ function createTransport() {
   })
 }
 
-export async function sendEmail(args: { to: string; subject: string; text: string; html?: string | null }): Promise<EmailSendResult> {
+export async function sendEmail(args: {
+  to: string
+  subject: string
+  text: string
+  html?: string | null
+  attachments?: SendMailOptions["attachments"]
+}): Promise<EmailSendResult> {
   try {
     const from = requireEnv("EMAIL_FROM")
     const replyTo = process.env.EMAIL_REPLY_TO
@@ -47,18 +53,20 @@ export async function sendEmail(args: { to: string; subject: string; text: strin
     const preferredLogoPath = path.join(process.cwd(), "public", "logo email-01.png")
     const fallbackLogoPath = path.join(process.cwd(), "public", "main logo-01.png")
     const logoPath = fs.existsSync(preferredLogoPath) ? preferredLogoPath : fallbackLogoPath
-    const attachments: SendMailOptions["attachments"] =
-      attachLogo && args.html && fs.existsSync(logoPath)
-        ? [
-            {
-              filename: "logo.png",
-              path: logoPath,
-              cid: "brandlogo",
-              contentDisposition: "inline",
-              contentType: "image/png",
-            },
-          ]
-        : undefined
+    const attachments: SendMailOptions["attachments"] = []
+    if (attachLogo && args.html && fs.existsSync(logoPath)) {
+      attachments.push({
+        filename: "logo.png",
+        path: logoPath,
+        cid: "brandlogo",
+        contentDisposition: "inline",
+        contentType: "image/png",
+      })
+    }
+    if (Array.isArray(args.attachments) && args.attachments.length) {
+      attachments.push(...args.attachments)
+    }
+    const finalAttachments = attachments.length ? attachments : undefined
 
     const info = await transporter.sendMail({
       from,
@@ -67,7 +75,7 @@ export async function sendEmail(args: { to: string; subject: string; text: strin
       text: args.text,
       html: args.html ?? undefined,
       replyTo: replyTo || undefined,
-      attachments,
+      attachments: finalAttachments,
     })
     return { ok: true, messageId: info.messageId }
   } catch (e: any) {

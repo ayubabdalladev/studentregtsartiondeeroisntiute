@@ -234,82 +234,118 @@ export default function CoursesList() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Courses & Classes</h1>
-          <p className="text-sm text-muted-foreground">Create courses and assign teacher + class.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Courses & Classes</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Create courses and assign teachers to classes.</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto bg-primary hover:bg-primary/90 flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" /> Add Course
+        <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
+          <Plus className="w-5 h-5" /> Add Course
         </Button>
       </div>
 
-      <Card className="p-4 sm:p-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by course name, class, or teacher..."
-            className="pl-10"
-          />
+      <div className="bg-card p-4 rounded-xl border shadow-sm">
+        <div className="max-w-md space-y-2">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search Courses</Label>
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by course name, class, or teacher..."
+              className="pl-10 h-11 rounded-lg border-muted shadow-sm focus-visible:ring-primary/20"
+            />
+          </div>
         </div>
-      </Card>
+      </div>
 
       {loading ? (
-        <Card className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
-          <Spinner />
-          Loading courses...
+        <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
+          <Spinner className="w-8 h-8 text-primary" />
+          <p>Loading courses...</p>
         </Card>
       ) : error ? (
-        <Card className="p-6 text-sm text-destructive">{error}</Card>
+        <Card className="p-6 text-sm bg-destructive/5 text-destructive border-destructive/20 shadow-sm">{error}</Card>
       ) : filteredCourses.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">No courses found.</Card>
+        <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
+          <div className="p-4 rounded-full bg-muted">
+            <Search className="w-8 h-8 opacity-50" />
+          </div>
+          <p className="text-lg font-medium">No courses found</p>
+          <p className="text-sm">Try adjusting your search query.</p>
+        </Card>
       ) : (
-        <Card className="overflow-hidden">
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Course Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Class</TableHead>
-                  <TableHead className="hidden md:table-cell">Teacher</TableHead>
-                  <TableHead className="hidden lg:table-cell">Students</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground min-w-[200px]">Course Name</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell whitespace-nowrap">Class</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell whitespace-nowrap">Teacher</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell whitespace-nowrap">Students</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</TableHead>
+                  <TableHead className="text-right pr-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCourses.map((course) => (
-                  <TableRow key={course.id}>
-                    <TableCell className="font-medium">
+                  <TableRow key={course.id} className="group hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
+                    <TableCell className="py-4 pl-6 font-medium">
                       <div className="space-y-0.5">
-                        <div className="truncate">{course.name}</div>
-                        <div className="text-xs text-muted-foreground md:hidden">
-                          Class: {course.class?.name ?? "—"} • Teacher: {course.teacher?.name ?? "Unassigned"}
+                        <div className="text-base text-foreground font-semibold">{course.name}</div>
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground md:hidden">
+                          <span><span className="font-medium text-foreground/70">Class:</span> {course.class?.name ?? "—"}</span>
+                          <span><span className="font-medium text-foreground/70">Teacher:</span> {course.teacher?.name ?? "Unassigned"}</span>
+                          <span className="lg:hidden"><span className="font-medium text-foreground/70">Students:</span> {course.studentsCount}</span>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{course.class?.name ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell">{course.teacher?.name ?? "Unassigned"}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{course.studentsCount.toLocaleString()}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell py-4">
+                      <Badge variant="outline" className="font-normal border-muted-foreground/20 text-muted-foreground">
+                        {course.class?.name ?? "Unassigned"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80">{course.teacher?.name ?? <span className="text-muted-foreground italic">Unassigned</span>}</TableCell>
+                    <TableCell className="hidden lg:table-cell py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary/50" />
+                        <span className="font-medium">{course.studentsCount.toLocaleString()}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
                       <Badge
-                        variant={
-                          course.status === "ACTIVE" ? "default" : course.status === "SCHEDULED" ? "secondary" : "outline"
-                        }
+                        variant="secondary"
+                        className={`rounded-full shadow-none px-3 font-semibold ${course.status === "ACTIVE"
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                            : course.status === "SCHEDULED"
+                              ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200"
+                          }`}
                       >
                         {statusLabel(course.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(course)} aria-label="Edit course">
+                    <TableCell className="text-right py-4 pr-6">
+                      <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(course)}
+                          aria-label="Edit course"
+                          className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                        >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(course.id)} aria-label="Delete course">
-                          <Trash2 className="w-4 h-4 text-destructive" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(course.id)}
+                          aria-label="Delete course"
+                          className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -318,7 +354,7 @@ export default function CoursesList() {
               </TableBody>
             </Table>
           </div>
-        </Card>
+        </div>
       )}
 
       <Dialog

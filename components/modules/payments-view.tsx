@@ -127,14 +127,14 @@ export default function PaymentsView() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Payments & Fees</h1>
-          <p className="text-sm text-muted-foreground">Record payments and track revenue.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Payments & Fees</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Record student payments and track revenue streams.</p>
         </div>
-        <Button onClick={openDialog} className="w-full sm:w-auto bg-primary hover:bg-primary/90 flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" /> Record Payment
+        <Button onClick={openDialog} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
+          <Plus className="w-5 h-5" /> Record Payment
         </Button>
       </div>
 
@@ -148,55 +148,67 @@ export default function PaymentsView() {
       ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-4 sm:p-6">
-          <p className="text-muted-foreground text-sm font-medium">Total Revenue (All Payments)</p>
-          <p className="text-3xl font-bold text-chart-1 mt-2">{totalRevenue.toLocaleString()}</p>
+        <Card className="p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Total Revenue</p>
+            <p className="text-4xl font-extrabold text-primary tabular-nums mt-2">{totalRevenue.toLocaleString()}</p>
+          </div>
+          <div className="mt-4 pt-4 border-t border-dashed">
+            <p className="text-xs text-muted-foreground">Total collected from all recorded payments.</p>
+          </div>
         </Card>
-        <Card className="p-4 sm:p-6">
-          <p className="text-muted-foreground text-sm font-medium">Unpaid Students</p>
-          <p className="text-3xl font-bold text-destructive mt-2">{(summary?.unpaidStudents ?? 0).toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-2">Monthly revenue: {(summary?.monthlyRevenue ?? 0).toLocaleString()}</p>
+        <Card className="p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Unpaid Students</p>
+              <p className="text-4xl font-extrabold text-destructive tabular-nums mt-2">{(summary?.unpaidStudents ?? 0).toLocaleString()}</p>
+            </div>
+            <Badge variant="outline" className="text-xs font-normal border-destructive/20 text-destructive bg-destructive/5">Needs Attention</Badge>
+          </div>
+          <div className="mt-4 pt-4 border-t border-dashed flex justify-between items-center">
+            <p className="text-xs text-muted-foreground">Monthly revenue target</p>
+            <p className="text-sm font-semibold tabular-nums text-foreground">{(summary?.monthlyRevenue ?? 0).toLocaleString()}</p>
+          </div>
         </Card>
       </div>
 
-      <Card className="overflow-hidden">
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead className="hidden md:table-cell">Class</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead className="hidden md:table-cell">Date</TableHead>
-                <TableHead>Status</TableHead>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Student</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Class</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Amount</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Date</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right pr-6">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell className="font-medium">
+                <TableRow key={payment.id} className="group hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
+                  <TableCell className="py-4 pl-6 font-medium">
                     <div className="space-y-0.5">
-                      <div className="truncate">
-                        {payment.student ? `${payment.student.firstName} ${payment.student.lastName}` : "—"}
-                      </div>
-                      <div className="text-xs text-muted-foreground md:hidden">
-                        {payment.student?.class?.name ?? "—"} • {new Date(payment.paidAt).toLocaleDateString()}
+                      <div className="text-base text-foreground font-semibold">{payment.student ? `${payment.student.firstName} ${payment.student.lastName}` : "—"}</div>
+                      <div className="text-xs text-muted-foreground md:hidden flex flex-col gap-1">
+                        <span>{payment.student?.class?.name ?? "—"}</span>
+                        <span className="font-mono">{new Date(payment.paidAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{payment.student?.class?.name ?? "—"}</TableCell>
-                  <TableCell>
-                    {payment.currency} {payment.amount.toLocaleString()}
+                  <TableCell className="hidden md:table-cell py-4 text-muted-foreground">{payment.student?.class?.name ?? "—"}</TableCell>
+                  <TableCell className="py-4">
+                    <span className="font-mono font-medium text-foreground">{payment.currency} {payment.amount.toLocaleString()}</span>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Badge>PAID</Badge>
+                  <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground font-mono">{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="py-4 text-right pr-6">
+                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none px-3 font-semibold rounded-full">PAID</Badge>
                   </TableCell>
                 </TableRow>
               ))}
               {!loading && !error && payments.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">
+                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-sm border-dashed">
                     No payments recorded yet.
                   </TableCell>
                 </TableRow>
@@ -204,7 +216,7 @@ export default function PaymentsView() {
             </TableBody>
           </Table>
         </div>
-      </Card>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
