@@ -72,6 +72,7 @@ export default function StudentsList() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({})
 
   const resetForm = () => {
     setEditing(null)
@@ -208,6 +209,38 @@ export default function StudentsList() {
     }
   }
 
+  const toggleStudentStatus = async (student: StudentRow) => {
+    if (statusUpdating[student.id]) return
+    const nextIsActive = !student.isActive
+    const prevIsActive = student.isActive
+
+    setStatusUpdating((cur) => ({ ...cur, [student.id]: true }))
+    setStudents((cur) => cur.map((s) => (s.id === student.id ? { ...s, isActive: nextIsActive } : s)))
+
+    try {
+      await api.patch(`/api/students/${student.id}`, {
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email ?? null,
+        phone: student.phone ?? null,
+        gender: student.gender ?? null,
+        classId: student.classId,
+        paymentStatus: student.paymentStatus,
+        isActive: nextIsActive,
+      })
+      toast({ title: `Student ${nextIsActive ? "activated" : "deactivated"}` })
+    } catch (e: any) {
+      setStudents((cur) => cur.map((s) => (s.id === student.id ? { ...s, isActive: prevIsActive } : s)))
+      toast({ title: "Update failed", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setStatusUpdating((cur) => {
+        const next = { ...cur }
+        delete next[student.id]
+        return next
+      })
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
@@ -334,13 +367,22 @@ export default function StudentsList() {
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge
+                        asChild
                         variant="secondary"
-                        className={`rounded-full shadow-none px-3 font-semibold ${student.isActive
+                        className={`rounded-full shadow-none px-3 font-semibold transition ${student.isActive
                           ? "bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200"
-                          }`}
+                          } ${statusUpdating[student.id] ? "opacity-60 cursor-wait" : "cursor-pointer"} disabled:opacity-60 disabled:cursor-not-allowed`}
                       >
-                        {student.isActive ? "ACTIVE" : "INACTIVE"}
+                        <button
+                          type="button"
+                          onClick={() => toggleStudentStatus(student)}
+                          disabled={statusUpdating[student.id]}
+                          aria-pressed={student.isActive}
+                          aria-label={`Set ${student.firstName} ${student.lastName} ${student.isActive ? "inactive" : "active"}`}
+                        >
+                          {student.isActive ? "ACTIVE" : "INACTIVE"}
+                        </button>
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right py-4 pr-6">

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { getSessionFromRequestCookies } from "@/lib/auth";
+import { buildIdFilter, buildIdFilterList } from "@/lib/mongo-id";
 
 export async function GET(req: Request) {
   const session = await getSessionFromRequestCookies();
@@ -16,14 +16,7 @@ export async function GET(req: Request) {
   const isActive = searchParams.get("isActive");
 
   const query: Record<string, unknown> = {};
-  if (classId) {
-    try {
-      new ObjectId(classId);
-    } catch {
-      return NextResponse.json({ message: "Invalid classId" }, { status: 400 });
-    }
-    query.classId = classId;
-  }
+  if (classId) query.classId = classId;
   if (paymentStatus) {
     if (paymentStatus !== "PAID" && paymentStatus !== "UNPAID") {
       return NextResponse.json({ message: "Invalid paymentStatus" }, { status: 400 });
@@ -47,25 +40,17 @@ export async function GET(req: Request) {
     ),
   );
 
-  const classObjectIds = classIds
-    .map((id) => {
-      try {
-        return new ObjectId(id);
-      } catch {
-        return null;
-      }
-    })
-    .filter((id): id is ObjectId => Boolean(id));
+  const classFilter = buildIdFilterList(classIds);
 
-  const classes = classObjectIds.length
+  const classes = classFilter
     ? await db
         .collection("Class")
-        .find({ _id: { $in: classObjectIds } })
+        .find(classFilter)
         .project({ name: 1, level: 1, isActive: 1 })
         .toArray()
     : [];
 
-  const classMap = new Map<string, any>(classes.map((c) => [c._id.toString(), c]));
+  const classMap = new Map<string, any>(classes.map((c) => [String(c._id), c]));
 
   return NextResponse.json(
     students.map((s) => {
@@ -103,12 +88,7 @@ export async function POST(req: Request) {
 
   const classId = (body.classId as string | null | undefined) ?? null;
   if (classId) {
-    try {
-      new ObjectId(classId);
-    } catch {
-      return NextResponse.json({ message: "Invalid classId" }, { status: 400 });
-    }
-    const cls = await db.collection("Class").findOne({ _id: new ObjectId(classId) }, { projection: { _id: 1 } });
+    const cls = await db.collection("Class").findOne(buildIdFilter(classId), { projection: { _id: 1 } });
     if (!cls) return NextResponse.json({ message: "Class not found" }, { status: 400 });
   }
 

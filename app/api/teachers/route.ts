@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { getSessionFromRequestCookies } from "@/lib/auth";
+import { buildIdFilterList } from "@/lib/mongo-id";
 
 // GET /api/teachers (ADMIN)
 export async function GET(req: Request) {
@@ -96,18 +96,9 @@ export async function POST(req: Request) {
   const teacherId = inserted.insertedId.toString();
   const ids = Array.isArray(classIds) ? (classIds.filter((x) => typeof x === "string") as string[]) : [];
   if (ids.length) {
-    const objectIds = ids
-      .map((id) => {
-        try {
-          return new ObjectId(id);
-        } catch {
-          return null;
-        }
-      })
-      .filter((id): id is ObjectId => Boolean(id));
-
-    if (objectIds.length) {
-      await db.collection("Class").updateMany({ _id: { $in: objectIds } }, { $set: { teacherId, updatedAt: new Date() } });
+    const classFilter = buildIdFilterList(ids);
+    if (classFilter) {
+      await db.collection("Class").updateMany(classFilter, { $set: { teacherId, updatedAt: new Date() } });
     }
   }
 

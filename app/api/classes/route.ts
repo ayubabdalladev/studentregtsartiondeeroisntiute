@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { getSessionFromRequestCookies } from "@/lib/auth";
+import { buildIdFilter, buildIdFilterList } from "@/lib/mongo-id";
 
 // GET /api/classes
 export async function GET() {
@@ -37,26 +37,14 @@ export async function GET() {
     ),
   );
 
-  const teacherObjectIds = teacherIdStrings
-    .map((id) => {
-      try {
-        return new ObjectId(id);
-      } catch {
-        return null;
-      }
-    })
-    .filter((id): id is ObjectId => Boolean(id));
+  const teacherFilter = buildIdFilterList(teacherIdStrings);
 
-  const teachers = teacherObjectIds.length
-    ? await db
-        .collection("User")
-        .find({ _id: { $in: teacherObjectIds } })
-        .project({ name: 1, email: 1 })
-        .toArray()
+  const teachers = teacherFilter
+    ? await db.collection("User").find(teacherFilter).project({ name: 1, email: 1 }).toArray()
     : [];
 
   const teacherMap = new Map<string, { id: string; name: string; email: string }>(
-    teachers.map((t) => [t._id.toString(), { id: t._id.toString(), name: t.name, email: t.email }]),
+    teachers.map((t) => [String(t._id), { id: String(t._id), name: t.name, email: t.email }]),
   );
 
   return NextResponse.json(
@@ -95,16 +83,9 @@ export async function POST(req: Request) {
 
   const teacherId = body.teacherId ?? null;
   if (teacherId) {
-    try {
-      // validate format (stored as string)
-      new ObjectId(teacherId);
-    } catch {
-      return NextResponse.json({ message: "Invalid teacherId" }, { status: 400 });
-    }
-
     const teacher = await db
       .collection("User")
-      .findOne({ _id: new ObjectId(teacherId) }, { projection: { role: 1, isActive: 1 } });
+      .findOne(buildIdFilter(teacherId), { projection: { role: 1, isActive: 1 } });
     if (!teacher || !teacher.isActive || teacher.role !== "TEACHER") {
       return NextResponse.json({ message: "Teacher not found" }, { status: 400 });
     }

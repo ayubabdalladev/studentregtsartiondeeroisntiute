@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { getSessionFromRequestCookies } from "@/lib/auth";
+import { buildIdFilter } from "@/lib/mongo-id";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -14,15 +14,8 @@ export async function GET(
   if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   if (session.role !== "ADMIN") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-  let classObjectId: ObjectId;
-  try {
-    classObjectId = new ObjectId(id);
-  } catch {
-    return NextResponse.json({ message: "Invalid class id" }, { status: 400 });
-  }
-
   const db = await getDb();
-  const cls = await db.collection("Class").findOne({ _id: classObjectId });
+  const cls = await db.collection("Class").findOne(buildIdFilter(id));
 
   if (!cls) {
     return NextResponse.json({ message: "Class not found" }, { status: 404 });
@@ -34,7 +27,7 @@ export async function GET(
     try {
       const t = await db
         .collection("User")
-        .findOne({ _id: new ObjectId(teacherId) }, { projection: { name: 1, email: 1 } });
+        .findOne(buildIdFilter(teacherId), { projection: { name: 1, email: 1 } });
       teacher = t ? { id: t._id.toString(), name: t.name, email: t.email } : null;
     } catch {
       teacher = null;
@@ -69,33 +62,22 @@ export async function PATCH(
 
   const body = await req.json();
 
-  let classObjectId: ObjectId;
-  try {
-    classObjectId = new ObjectId(id);
-  } catch {
-    return NextResponse.json({ message: "Invalid class id" }, { status: 400 });
-  }
-
   const teacherId = body.teacherId ?? null;
   if (teacherId) {
-    try {
-      new ObjectId(teacherId);
-    } catch {
-      return NextResponse.json({ message: "Invalid teacherId" }, { status: 400 });
-    }
+    if (typeof teacherId !== "string") return NextResponse.json({ message: "Invalid teacherId" }, { status: 400 });
   }
 
   const db = await getDb();
   if (teacherId) {
     const teacher = await db
       .collection("User")
-      .findOne({ _id: new ObjectId(teacherId) }, { projection: { role: 1, isActive: 1 } });
+      .findOne(buildIdFilter(teacherId), { projection: { role: 1, isActive: 1 } });
     if (!teacher || !teacher.isActive || teacher.role !== "TEACHER") {
       return NextResponse.json({ message: "Teacher not found" }, { status: 400 });
     }
   }
   const updated = await db.collection("Class").findOneAndUpdate(
-    { _id: classObjectId },
+    buildIdFilter(id),
     {
       $set: {
         name: body.name,
@@ -131,20 +113,14 @@ export async function DELETE(
   if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   if (session.role !== "ADMIN") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-  let classObjectId: ObjectId;
-  try {
-    classObjectId = new ObjectId(id);
-  } catch {
-    return NextResponse.json({ message: "Invalid class id" }, { status: 400 });
-  }
-
   const db = await getDb();
-  const classId = classObjectId.toString();
-  const deleted = await db.collection("Class").deleteOne({ _id: classObjectId });
-  if (!deleted.deletedCount) {
+  const deleted = await db.collection("Class").findOneAndDelete(buildIdFilter(id));
+  const cls = deleted?.value;
+  if (!cls) {
     return NextResponse.json({ message: "Class not found" }, { status: 404 });
   }
 
+  const classId = String(cls._id);
   await db.collection("Student").updateMany({ classId }, { $set: { classId: null, updatedAt: new Date() } });
   await db.collection("Course").deleteMany({ classId });
 
