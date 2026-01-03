@@ -57,15 +57,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 min-h-screen">
         <div className="w-full max-w-[420px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
           {/* Mobile Header (Only visible on small screens) */}
-          <div className="lg:hidden mb-8 text-center space-y-2">
-            <div className="flex justify-center mb-2">
+          <div className="lg:hidden mb-8 text-center">
+            <div className="flex justify-center">
               <img src="/main logo-01.png" alt="School Logo" className="h-20 w-auto object-contain" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">School Management</h1>
           </div>
 
           <Card className="p-8 sm:p-10 shadow-2xl border-muted/40 backdrop-blur-sm">
-            <div className="mb-6 flex justify-center sm:justify-start">
+            <div className="mb-6 hidden lg:flex justify-center sm:justify-start">
               <img src="/main logo-01.png" alt="School Logo" className="h-16 w-auto object-contain" />
             </div>
             <div className="mb-8 space-y-1.5 text-center sm:text-left">

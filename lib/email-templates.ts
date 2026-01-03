@@ -34,8 +34,8 @@ export function buildBroadcastEmailTemplate(args: {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
-    <meta name="supported-color-schemes" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <title>${escapeHtml(args.subject)}</title>
   </head>
   <body style="margin:0;padding:0;background:#f6f7fb;background-color:#f6f7fb !important;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;-webkit-text-size-adjust:100%;color-scheme:light;">
@@ -68,7 +68,7 @@ export function buildBroadcastEmailTemplate(args: {
 
             <tr>
               <td bgcolor="#ffffff" style="padding:22px 20px 8px 20px;background:#ffffff !important;background-color:#ffffff !important;">
-                <div style="font-size:20px;font-weight:750;color:#0f172a !important;line-height:1.25;">${headerTitle}</div>
+                <div style="font-size:20px;font-weight:750;color:#0f172a !important;line-height:1.25;margin-bottom:4px;">${headerTitle}</div>
                 ${
                   headerSubtitle
                     ? `<div style="margin-top:6px;font-size:13px;color:#475569 !important;line-height:1.5;">${headerSubtitle}</div>`
@@ -78,8 +78,8 @@ export function buildBroadcastEmailTemplate(args: {
             </tr>
 
             <tr>
-              <td bgcolor="#ffffff" style="padding:0 20px 18px 20px;background:#ffffff !important;background-color:#ffffff !important;">
-                <div style="margin-top:10px;padding:14px 14px;border:1px solid #e6e8ef;border-radius:12px;background:#ffffff !important;background-color:#ffffff !important;color:#0f172a !important;font-size:14px;line-height:1.65;">
+              <td bgcolor="#ffffff" style="padding:4px 20px 20px 20px;background:#ffffff !important;background-color:#ffffff !important;">
+                <div style="margin-top:10px;padding:16px 16px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc !important;background-color:#f8fafc !important;color:#0f172a !important;font-size:14px;line-height:1.65;">
                   ${nl2br(args.message)}
                 </div>
               </td>
@@ -88,7 +88,7 @@ export function buildBroadcastEmailTemplate(args: {
             <tr>
               <td bgcolor="#ffffff" style="padding:0 20px 20px 20px;background:#ffffff !important;background-color:#ffffff !important;">
                 <div style="font-size:12px;color:#64748b !important;line-height:1.6;">
-                  If you have questions, reply to this email.
+                  If you have any questions, please reply to this email to contact the ${escapeHtml(brand)} team.
                 </div>
               </td>
             </tr>

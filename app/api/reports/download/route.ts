@@ -9,6 +9,10 @@ function csvEscape(value: unknown) {
   return str
 }
 
+function csvRow(...values: unknown[]) {
+  return values.map(csvEscape).join(",")
+}
+
 export async function GET(req: NextRequest) {
   const session = await getSessionFromRequestCookies()
   if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
@@ -152,41 +156,44 @@ export async function GET(req: NextRequest) {
 
   const lines: string[] = []
 
-  lines.push("Summary")
-  lines.push(["generatedAt", now.toISOString()].map(csvEscape).join(","))
-  lines.push(["totalStudents", studentsActive].map(csvEscape).join(","))
-  lines.push(["totalTeachers", teachersActive].map(csvEscape).join(","))
-  lines.push(["totalClasses", classesTotal].map(csvEscape).join(","))
-  lines.push(["attendanceRate", attendanceRate.toFixed(2)].map(csvEscape).join(","))
-  lines.push(["paidStudents", paidStudents].map(csvEscape).join(","))
-  lines.push(["unpaidStudents", unpaidStudents].map(csvEscape).join(","))
-  lines.push(["monthlyRevenue", monthlyRevenue].map(csvEscape).join(","))
-  lines.push("")
+  // Unified, Excel-friendly layout: every row has the same number of columns
+  lines.push(csvRow("section", "metric", "value1", "value2", "value3", "value4", "value5", "value6"))
 
-  lines.push("EnrollmentTrends")
-  lines.push(["month", "newStudents"].map(csvEscape).join(","))
-  for (const row of enrollmentRows) lines.push([row.month, row.count].map(csvEscape).join(","))
-  lines.push("")
+  // Summary metrics
+  lines.push(csvRow("SUMMARY", "generatedAt", now.toISOString(), "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "totalStudents", studentsActive, "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "totalTeachers", teachersActive, "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "totalClasses", classesTotal, "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "attendanceRate", attendanceRate.toFixed(2), "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "paidStudents", paidStudents, "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "unpaidStudents", unpaidStudents, "", "", "", "", ""))
+  lines.push(csvRow("SUMMARY", "monthlyRevenue", monthlyRevenue, "", "", "", "", ""))
 
-  lines.push("WeeklyAttendance")
-  lines.push(["date", "present", "absent"].map(csvEscape).join(","))
-  for (const row of weeklyRows) lines.push([row.day, row.present, row.absent].map(csvEscape).join(","))
-  lines.push("")
+  // Enrollment trends
+  for (const row of enrollmentRows) {
+    lines.push(csvRow("ENROLLMENT", row.month, row.count, "", "", "", "", ""))
+  }
 
-  lines.push("Payments")
-  lines.push(["paidAt", "student", "class", "amount", "currency", "note"].map(csvEscape).join(","))
+  // Weekly attendance
+  for (const row of weeklyRows) {
+    lines.push(csvRow("WEEKLY_ATTENDANCE", row.day, row.present, row.absent, "", "", "", ""))
+  }
+
+  // Recent payments
   for (const p of payments) {
     const studentId = (p.studentId as string | null | undefined) ?? null
     const student = studentId ? studentMap.get(studentId) ?? null : null
     lines.push(
-      [
+      csvRow(
+        "PAYMENT",
         p.paidAt ? new Date(p.paidAt).toISOString() : "",
         student?.name ?? "",
         student?.className ?? "",
         Number(p.amount ?? 0),
         (p.currency as string | null | undefined) ?? "USD",
         (p.note as string | null | undefined) ?? "",
-      ].map(csvEscape).join(","),
+        "",
+      ),
     )
   }
 

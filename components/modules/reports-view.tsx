@@ -28,7 +28,8 @@ export default function ReportsView() {
   const [summary, setSummary] = useState<ReportsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [downloading, setDownloading] = useState(false)
+  const [downloadingExcel, setDownloadingExcel] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -56,8 +57,8 @@ export default function ReportsView() {
     [summary],
   )
 
-  const downloadReport = async () => {
-    setDownloading(true)
+  const downloadExcel = async () => {
+    setDownloadingExcel(true)
     try {
       const res = await api.get<Blob>("/api/reports/download", { responseType: "blob" as any })
       const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" })
@@ -72,7 +73,27 @@ export default function ReportsView() {
     } catch (e: any) {
       setError(getErrorMessage(e))
     } finally {
-      setDownloading(false)
+      setDownloadingExcel(false)
+    }
+  }
+
+  const downloadPdf = async () => {
+    setDownloadingPdf(true)
+    try {
+      const res = await api.get<Blob>("/api/reports/download/pdf", { responseType: "blob" as any })
+      const blob = new Blob([res.data], { type: "application/pdf" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `school-report-${new Date().toISOString().slice(0, 10)}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (e: any) {
+      setError(getErrorMessage(e))
+    } finally {
+      setDownloadingPdf(false)
     }
   }
 
@@ -83,14 +104,25 @@ export default function ReportsView() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Reports & Analytics</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Comprehensive overview of school performance and metrics.</p>
         </div>
-        <Button
-          size="lg"
-          className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6"
-          onClick={downloadReport}
-          disabled={loading || downloading || Boolean(error)}
-        >
-          <Download className="w-4 h-4" /> {downloading ? "Preparing..." : "Download Report"}
-        </Button>
+        <div className="flex w-full sm:w-auto gap-2 justify-end">
+          <Button
+            size="lg"
+            variant="outline"
+            className="flex-1 sm:flex-none rounded-full gap-2 px-4"
+            onClick={downloadPdf}
+            disabled={loading || downloadingPdf || Boolean(error)}
+          >
+            <Download className="w-4 h-4" /> {downloadingPdf ? "Preparing..." : "Download PDF"}
+          </Button>
+          <Button
+            size="lg"
+            className="flex-1 sm:flex-none rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-4"
+            onClick={downloadExcel}
+            disabled={loading || downloadingExcel || Boolean(error)}
+          >
+            <Download className="w-4 h-4" /> {downloadingExcel ? "Preparing..." : "Download Excel"}
+          </Button>
+        </div>
       </div>
 
       {loading ? (

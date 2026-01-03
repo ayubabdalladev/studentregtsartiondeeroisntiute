@@ -186,10 +186,9 @@ export default function AttendanceView() {
       </div>
 
       {/* Filters */}
-      {/* Filters */}
       <div className="bg-card p-4 rounded-xl border shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-          <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+          <div className="space-y-2 lg:col-span-6">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Class</div>
             <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={loading}>
               <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
@@ -206,7 +205,7 @@ export default function AttendanceView() {
             </Select>
             {!classes.length && !loading ? <div className="text-xs text-muted-foreground">Create a class first.</div> : null}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-6">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</div>
             <input
               type="date"

@@ -54,6 +54,7 @@ export default function PaymentsView() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [students, setStudents] = useState<StudentOption[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<string>("")
+  const [studentSearch, setStudentSearch] = useState<string>("")
   const [amount, setAmount] = useState<string>("")
   const [note, setNote] = useState<string>("")
   const [saving, setSaving] = useState(false)
@@ -84,6 +85,7 @@ export default function PaymentsView() {
     setSelectedStudentId("")
     setAmount("")
     setNote("")
+    setStudentSearch("")
 
     try {
       const res = await api.get<Array<any>>("/api/students?paymentStatus=UNPAID")
@@ -101,6 +103,16 @@ export default function PaymentsView() {
   }
 
   const totalRevenue = useMemo(() => payments.reduce((sum, p) => sum + (p.amount ?? 0), 0), [payments])
+
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return students
+    const term = studentSearch.toLowerCase()
+    return students.filter((s) => {
+      const fullName = `${s.firstName} ${s.lastName}`
+      const className = s.class?.name ?? ""
+      return `${fullName} ${className}`.toLowerCase().includes(term)
+    })
+  }, [students, studentSearch])
 
   const submitPayment = async () => {
     if (!selectedStudentId) {
@@ -233,11 +245,26 @@ export default function PaymentsView() {
                   <SelectValue placeholder="Select an unpaid student" />
                 </SelectTrigger>
                 <SelectContent>
-                  {students.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.firstName} {s.lastName} {s.class ? `• ${s.class.name}` : ""}
-                    </SelectItem>
-                  ))}
+                  <div className="px-2 pt-2 pb-1 border-b bg-background">
+                    <Input
+                      autoFocus
+                      placeholder="Search student..."
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  {filteredStudents.length ? (
+                    filteredStudents.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.firstName} {s.lastName} {s.class ? `• ${s.class.name}` : ""}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      No students found
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>

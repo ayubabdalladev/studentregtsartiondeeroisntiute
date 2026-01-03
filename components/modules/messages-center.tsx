@@ -184,8 +184,8 @@ export default function MessagesCenter() {
           </div>
 
           <div className="p-4 sm:p-6 space-y-6 sm:space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">
+              <div className="space-y-2 lg:col-span-4">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Target Type</Label>
                 <Select value={targetType} onValueChange={(v) => setTargetType(v as TargetType)}>
                   <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
@@ -199,7 +199,7 @@ export default function MessagesCenter() {
               </div>
 
               {targetType === "CLASS" ? (
-                <div className="space-y-2">
+                <div className="space-y-2 lg:col-span-8">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Select Class</Label>
                   <Select value={classId} onValueChange={setClassId}>
                     <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
@@ -216,7 +216,7 @@ export default function MessagesCenter() {
                   {!classes.length && <p className="text-xs text-muted-foreground">Create a class first.</p>}
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 lg:col-span-8">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Select Course</Label>
                   <Select value={courseId} onValueChange={setCourseId}>
                     <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">

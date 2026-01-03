@@ -254,7 +254,7 @@ export default function StudentsList() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 bg-card p-4 rounded-xl border shadow-sm items-end">
-        <div className="sm:col-span-2 lg:col-span-6 space-y-2">
+        <div className="sm:col-span-2 lg:col-span-4 space-y-2">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search</Label>
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -267,7 +267,7 @@ export default function StudentsList() {
           </div>
         </div>
 
-        <div className="sm:col-span-1 lg:col-span-3 space-y-2">
+        <div className="sm:col-span-1 lg:col-span-4 space-y-2">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Class</Label>
           <Select value={filterClassId} onValueChange={setFilterClassId}>
             <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
@@ -284,7 +284,7 @@ export default function StudentsList() {
           </Select>
         </div>
 
-        <div className="sm:col-span-1 lg:col-span-3 space-y-2">
+        <div className="sm:col-span-1 lg:col-span-4 space-y-2">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment</Label>
           <Select value={filterPayment} onValueChange={setFilterPayment}>
             <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
