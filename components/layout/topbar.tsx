@@ -1,19 +1,24 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Menu, Moon, Sun, Bell, Settings, User } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface TopBarProps {
   sidebarOpen: boolean
   onSidebarToggle: (open: boolean) => void
-  darkMode: boolean
-  onDarkModeToggle: (mode: boolean) => void
   title?: string
 }
 
-export default function TopBar({ sidebarOpen, onSidebarToggle, darkMode, onDarkModeToggle, title }: TopBarProps) {
+export default function TopBar({ sidebarOpen, onSidebarToggle, title }: TopBarProps) {
   const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Avoid hydration mismatch
+  useEffect(() => setMounted(true), [])
+
   const derivedTitle = useMemo(() => {
     if (title) return title
     if (pathname.startsWith("/classes")) return "Classes"
@@ -42,12 +47,15 @@ export default function TopBar({ sidebarOpen, onSidebarToggle, darkMode, onDarkM
 
       {/* Right Side */}
       <div className="flex items-center gap-1 sm:gap-2">
-        <button
-          onClick={() => onDarkModeToggle(!darkMode)}
-          className="p-1.5 sm:p-2 hover:bg-muted rounded-lg transition-colors"
-        >
-          {darkMode ? <Sun className="w-5 h-5 text-accent" /> : <Moon className="w-5 h-5" />}
-        </button>
+        {mounted && (
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="p-1.5 sm:p-2 hover:bg-muted rounded-lg transition-colors"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark" ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
+          </button>
+        )}
 
         <button className="p-1.5 sm:p-2 hover:bg-muted rounded-lg transition-colors relative">
           <Bell className="w-5 h-5" />

@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Users, BookOpen, Calendar, DollarSign } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -30,57 +31,33 @@ type ReportsSummary = {
   paidStudents: number
   unpaidStudents: number
   monthlyRevenue: number
+  lastMonthRevenue: number
+  largestClasses: Array<{ name: string; students: number }>
+  highestAbsenceClasses: Array<{ name: string; rate: number }>
   weeklyAttendance: Array<{ label: string; present: number; absent: number }>
   enrollmentTrends: Array<{ label: string; value: number }>
-}
-
-type ActivityRow = {
-  id: string
-  type: "enrollment" | "attendance" | "payment" | "teacher" | "class" | "course"
-  message: string
-  timestamp: string
 }
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value)
 }
 
-function formatRelativeTime(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (seconds < 60) return "Just now"
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`
-  const days = Math.floor(hours / 24)
-  return `${days} day${days === 1 ? "" : "s"} ago`
-}
-
 export default function DashboardMetrics() {
   const [summary, setSummary] = useState<ReportsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activities, setActivities] = useState<ActivityRow[]>([])
-  const [activitiesLoading, setActivitiesLoading] = useState(true)
 
   useEffect(() => {
     const run = async () => {
       setLoading(true)
       setError(null)
       try {
-        const [summaryRes, activitiesRes] = await Promise.all([
-          api.get<ReportsSummary>("/api/reports/summary"),
-          api.get<{ items: ActivityRow[] }>("/api/dashboard/activities?limit=8"),
-        ])
+        const summaryRes = await api.get<ReportsSummary>("/api/reports/summary")
         setSummary(summaryRes.data)
-        setActivities(Array.isArray(activitiesRes.data?.items) ? activitiesRes.data.items : [])
       } catch (e: any) {
         setError(e?.response?.data?.message ?? e?.message ?? "Failed to load dashboard data.")
       } finally {
         setLoading(false)
-        setActivitiesLoading(false)
       }
     }
     void run()
@@ -99,6 +76,7 @@ export default function DashboardMetrics() {
       {
         label: "Monthly Revenue",
         value: summary ? formatCurrency(summary.monthlyRevenue) : "—",
+        subValue: summary ? `${summary.monthlyRevenue >= summary.lastMonthRevenue ? "+" : ""}${formatCurrency(summary.monthlyRevenue - summary.lastMonthRevenue)} vs last month` : "",
         icon: DollarSign,
         color: "bg-chart-4",
       },
@@ -150,6 +128,11 @@ export default function DashboardMetrics() {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{metric.label}</p>
                   <p className="text-3xl font-extrabold text-foreground tracking-tight tabular-nums">{metric.value}</p>
+                  {"subValue" in metric && metric.subValue && (
+                    <p className={`text-xs font-medium ${summary && summary.monthlyRevenue >= summary.lastMonthRevenue ? "text-emerald-600" : "text-amber-600"}`}>
+                      {metric.subValue}
+                    </p>
+                  )}
                 </div>
                 <div className={`${metric.color} p-3 rounded-xl shadow-sm group-hover:scale-110 transition-transform`}>
                   <Icon className="w-5 h-5 text-white" />
@@ -164,6 +147,35 @@ export default function DashboardMetrics() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Enrollment Trend */}
+        <Card className="p-6 flex flex-col">
+          <div className="mb-6 space-y-1">
+            <h3 className="font-bold text-lg text-foreground tracking-tight">Top Classes</h3>
+            <p className="text-sm text-muted-foreground">Classes with most students & high absence.</p>
+          </div>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Largest Classes</h4>
+              {summary?.largestClasses?.map((c, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-muted">
+                  <span className="font-medium text-sm">{c.name}</span>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">{c.students} Students</Badge>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Highest Absence Rate</h4>
+              {summary?.highestAbsenceClasses?.map((c, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  <span className="font-medium text-sm">{c.name}</span>
+                  <Badge variant="outline" className="text-destructive border-destructive/20 font-mono">{c.rate}% Absent</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Enrollment Trend Chart - Moved to its own card or below */}
         <Card className="p-6 flex flex-col">
           <div className="mb-6 space-y-1">
             <h3 className="font-bold text-lg text-foreground tracking-tight">Enrollment Growth</h3>
@@ -254,92 +266,51 @@ export default function DashboardMetrics() {
             </ResponsiveContainer>
           </div>
         </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6 lg:col-span-1">
-          <h3 className="font-bold text-lg text-foreground mb-6 tracking-tight">Payment Status</h3>
-          <div className="flex flex-col items-center justify-center h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={paymentData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  <Cell fill="var(--chart-1)" strokeWidth={0} />
-                  <Cell fill="var(--destructive)" strokeWidth={0} />
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                  }}
-                  itemStyle={{ color: "var(--foreground)", fontSize: 13, fontWeight: 500 }}
-                />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="w-full grid grid-cols-2 gap-2 mt-4">
-              <div className="text-center p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-xs text-muted-foreground uppercase">Paid</p>
-                <p className="font-bold text-emerald-600">{(summary?.paidStudents ?? 0).toLocaleString()}</p>
+        {/* Payment Status */}
+        <Card className="p-6 flex flex-col">
+          <h3 className="font-bold text-lg text-foreground mb-6 tracking-tight">Payment Status Overview</h3>
+          <div className="flex flex-col items-center justify-between gap-6 h-full">
+            <div className="w-full h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={paymentData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={85}
+                    paddingAngle={5}
+                  >
+                    <Cell fill="var(--chart-1)" strokeWidth={0} />
+                    <Cell fill="var(--destructive)" strokeWidth={0} />
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                    }}
+                    itemStyle={{ color: "var(--foreground)", fontSize: 13, fontWeight: 500 }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="w-full grid grid-cols-2 gap-3 mt-auto">
+              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col items-center justify-center">
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Paid</p>
+                <p className="text-2xl font-black text-emerald-700">{(summary?.paidStudents ?? 0)}</p>
               </div>
-              <div className="text-center p-2 rounded bg-rose-500/10 border border-rose-500/20">
-                <p className="text-xs text-muted-foreground uppercase">Unpaid</p>
-                <p className="font-bold text-rose-600">{(summary?.unpaidStudents ?? 0).toLocaleString()}</p>
+              <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col items-center justify-center">
+                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Unpaid</p>
+                <p className="text-2xl font-black text-rose-700">{(summary?.unpaidStudents ?? 0)}</p>
               </div>
             </div>
-          </div>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="p-6 lg:col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="font-bold text-lg text-foreground tracking-tight">Recent Activities</h3>
-              <p className="text-sm sm:text-base text-muted-foreground">Latest system events and updates.</p>
-            </div>
-            <Button variant="outline" size="sm" className="h-8 text-xs">View All</Button>
-          </div>
-
-          <div className="space-y-0">
-            {activities.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-start gap-4 p-4 sm:p-5 hover:bg-muted/30 transition-colors border-b last:border-0"
-              >
-                <div className={`mt-2 w-2.5 h-2.5 rounded-full flex-shrink-0 ${item.type === 'enrollment'
-                    ? 'bg-blue-500'
-                    : item.type === 'attendance'
-                      ? 'bg-emerald-500'
-                      : item.type === 'payment'
-                        ? 'bg-amber-500'
-                        : item.type === 'teacher'
-                          ? 'bg-violet-500'
-                          : item.type === 'class'
-                            ? 'bg-cyan-500'
-                            : item.type === 'course'
-                              ? 'bg-fuchsia-500'
-                              : 'bg-slate-500'
-                  }`} />
-                <div className="flex-1 space-y-1">
-                  <p className="text-base font-semibold text-foreground leading-snug">{item.message}</p>
-                  <p className="text-sm text-muted-foreground">{formatRelativeTime(item.timestamp)}</p>
-                </div>
-              </div>
-            ))}
-            {activitiesLoading && <div className="p-8 text-center text-sm text-muted-foreground">Loading feed...</div>}
-            {!activitiesLoading && activities.length === 0 && (
-              <div className="p-8 text-center text-sm text-muted-foreground">No recent activity yet.</div>
-            )}
           </div>
         </Card>
       </div>

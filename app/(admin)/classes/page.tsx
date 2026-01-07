@@ -84,6 +84,7 @@ export default function ClassesPage() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({})
 
   const resetForm = () => {
     setName("")
@@ -156,10 +157,10 @@ export default function ClassesPage() {
 
       if (editing) {
         await api.patch(`/api/classes/${editing.id}`, payload)
-        toast({ title: "Class updated" })
+        toast({ title: "Class updated successfully" })
       } else {
         await api.post("/api/classes", payload)
-        toast({ title: "Class created" })
+        toast({ title: "Class created successfully" })
       }
 
       setFormOpen(false)
@@ -185,7 +186,7 @@ export default function ClassesPage() {
 
     try {
       await api.delete(`/api/classes/${deleteId}`)
-      toast({ title: "Class deleted" })
+      toast({ title: "Class deleted successfully" })
     } catch (e: any) {
       setClasses(previous)
       toast({
@@ -196,6 +197,34 @@ export default function ClassesPage() {
     } finally {
       setDeleting(false)
       setDeleteId(null)
+    }
+  }
+
+  const toggleClassStatus = async (cls: ClassRow) => {
+    if (statusUpdating[cls.id]) return
+    const nextIsActive = !cls.isActive
+    const prevIsActive = cls.isActive
+
+    setStatusUpdating((cur) => ({ ...cur, [cls.id]: true }))
+    setClasses((cur) => cur.map((c) => (c.id === cls.id ? { ...c, isActive: nextIsActive } : c)))
+
+    try {
+      await api.patch(`/api/classes/${cls.id}`, {
+        name: cls.name,
+        level: cls.level,
+        teacherId: cls.teacherId,
+        isActive: nextIsActive,
+      })
+      toast({ title: nextIsActive ? "Class is now ACTIVE" : "Class is now INACTIVE" })
+    } catch (e: any) {
+      setClasses((cur) => cur.map((c) => (c.id === cls.id ? { ...c, isActive: prevIsActive } : c)))
+      toast({ title: "Update failed", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setStatusUpdating((cur) => {
+        const next = { ...cur }
+        delete next[cls.id]
+        return next
+      })
     }
   }
 
@@ -274,14 +303,25 @@ export default function ClassesPage() {
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
-                      {cls.isActive ? (
-                        <Badge className="rounded-full shadow-none px-3 font-semibold bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Active</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="rounded-full shadow-none px-3 font-semibold bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200">Inactive</Badge>
-                      )}
+                      <Badge
+                        asChild
+                        variant="secondary"
+                        className={`rounded-full shadow-none px-3 font-semibold transition ${cls.isActive
+                          ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200"
+                          } ${statusUpdating[cls.id] ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleClassStatus(cls)}
+                          disabled={statusUpdating[cls.id]}
+                        >
+                          {cls.isActive ? "Active" : "Inactive"}
+                        </button>
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right py-4 pr-6">
-                      <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2 opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"

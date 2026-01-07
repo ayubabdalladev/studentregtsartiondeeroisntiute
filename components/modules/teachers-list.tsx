@@ -59,6 +59,7 @@ export default function TeachersList() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({})
 
   const resetForm = () => {
     setEditing(null)
@@ -144,10 +145,10 @@ export default function TeachersList() {
 
       if (editing) {
         await api.patch(`/api/teachers/${editing.id}`, payload)
-        toast({ title: "Teacher updated" })
+        toast({ title: "Teacher updated successfully" })
       } else {
         await api.post("/api/teachers", payload)
-        toast({ title: "Teacher created" })
+        toast({ title: "Teacher created successfully" })
       }
 
       setFormOpen(false)
@@ -165,13 +166,40 @@ export default function TeachersList() {
     setDeleting(true)
     try {
       await api.delete(`/api/teachers/${deleteId}`)
-      toast({ title: "Teacher deleted" })
+      toast({ title: "Teacher deleted successfully" })
       await fetchTeachers()
     } catch (e: any) {
       toast({ title: "Delete failed", description: getErrorMessage(e), variant: "destructive" })
     } finally {
       setDeleting(false)
       setDeleteId(null)
+    }
+  }
+
+  const toggleTeacherStatus = async (teacher: TeacherRow) => {
+    if (statusUpdating[teacher.id]) return
+    const nextIsActive = !teacher.isActive
+    const prevIsActive = teacher.isActive
+
+    setStatusUpdating((cur) => ({ ...cur, [teacher.id]: true }))
+    setTeachers((cur) => cur.map((t) => (t.id === teacher.id ? { ...t, isActive: nextIsActive } : t)))
+
+    try {
+      await api.patch(`/api/teachers/${teacher.id}`, {
+        name: teacher.name,
+        email: teacher.email,
+        isActive: nextIsActive,
+      })
+      toast({ title: nextIsActive ? "Teacher is now ACTIVE" : "Teacher is now INACTIVE" })
+    } catch (e: any) {
+      setTeachers((cur) => cur.map((t) => (t.id === teacher.id ? { ...t, isActive: prevIsActive } : t)))
+      toast({ title: "Update failed", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setStatusUpdating((cur) => {
+        const next = { ...cur }
+        delete next[teacher.id]
+        return next
+      })
     }
   }
 
@@ -258,13 +286,20 @@ export default function TeachersList() {
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge
+                        asChild
                         variant="secondary"
-                        className={`rounded-full shadow-none px-3 font-semibold ${teacher.isActive
-                            ? "bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200"
-                          }`}
+                        className={`rounded-full shadow-none px-3 font-semibold transition ${teacher.isActive
+                          ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200"
+                          } ${statusUpdating[teacher.id] ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
                       >
-                        {teacher.isActive ? "ACTIVE" : "INACTIVE"}
+                        <button
+                          type="button"
+                          onClick={() => toggleTeacherStatus(teacher)}
+                          disabled={statusUpdating[teacher.id]}
+                        >
+                          {teacher.isActive ? "ACTIVE" : "INACTIVE"}
+                        </button>
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right py-4 pr-6">

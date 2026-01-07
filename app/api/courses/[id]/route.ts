@@ -66,10 +66,9 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   }
 
   const updated = await db.collection("Course").findOneAndUpdate(buildIdFilter(id), { $set: update }, { returnDocument: "after" })
-  const value = updated?.value
-  if (!value) return NextResponse.json({ message: "Course not found" }, { status: 404 })
+  if (!updated) return NextResponse.json({ message: "Course not found" }, { status: 404 })
 
-  return NextResponse.json({ id: value._id.toString(), ...value, _id: undefined })
+  return NextResponse.json({ id: updated._id.toString(), ...updated, _id: undefined })
 }
 
 export async function DELETE(_: NextRequest, { params }: RouteContext) {
@@ -80,6 +79,6 @@ export async function DELETE(_: NextRequest, { params }: RouteContext) {
   const { id } = await params
   const db = await getDb()
   const deleted = await db.collection("Course").findOneAndDelete(buildIdFilter(id))
-  if (!deleted?.value) return NextResponse.json({ message: "Course not found" }, { status: 404 })
+  if (!deleted) return NextResponse.json({ message: "Course not found" }, { status: 404 })
   return NextResponse.json({ ok: true })
 }

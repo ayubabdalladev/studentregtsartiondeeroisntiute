@@ -127,8 +127,7 @@ export const prisma = {
         { $set: { ...args.data, updatedAt: new Date() } },
         { returnDocument: "after" },
       )
-      const value = updated?.value
-      return value ? normalizeId(value) : null
+      return updated ? normalizeId(updated) : null
     },
     async delete(args: { where: { id: string } }) {
       const db = await getDb()
@@ -203,8 +202,7 @@ export const prisma = {
         { $set: { ...args.data, updatedAt: new Date() } },
         { returnDocument: "after" },
       )
-      const value = updated?.value
-      return value ? normalizeId(value) : null
+      return updated ? normalizeId(updated) : null
     },
     async delete(args: { where: { id: string } }) {
       const db = await getDb()

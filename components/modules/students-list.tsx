@@ -73,6 +73,7 @@ export default function StudentsList() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({})
+  const [paymentUpdating, setPaymentUpdating] = useState<Record<string, boolean>>({})
 
   const resetForm = () => {
     setEditing(null)
@@ -176,17 +177,25 @@ export default function StudentsList() {
 
       if (editing) {
         await api.patch(`/api/students/${editing.id}`, payload)
-        toast({ title: "Student updated" })
+        toast({ title: "Student updated successfully" })
       } else {
         await api.post("/api/students", payload)
-        toast({ title: "Student created" })
+        toast({ title: "Student created successfully" })
       }
 
       setFormOpen(false)
       resetForm()
       await fetchStudents()
     } catch (e: any) {
-      toast({ title: "Save failed", description: getErrorMessage(e), variant: "destructive" })
+      const status = e?.response?.status
+      if (status === 404) {
+        toast({ title: "Student not found", description: "Refreshing student list...", variant: "destructive" })
+        setFormOpen(false)
+        resetForm()
+        await fetchStudents()
+      } else {
+        toast({ title: "Save failed", description: getErrorMessage(e), variant: "destructive" })
+      }
     } finally {
       setSaving(false)
     }
@@ -199,10 +208,16 @@ export default function StudentsList() {
     setStudents((cur) => cur.filter((s) => s.id !== deleteId))
     try {
       await api.delete(`/api/students/${deleteId}`)
-      toast({ title: "Student deleted" })
+      toast({ title: "Student deleted successfully" })
     } catch (e: any) {
-      setStudents(prev)
-      toast({ title: "Delete failed", description: getErrorMessage(e), variant: "destructive" })
+      const status = e?.response?.status
+      if (status === 404) {
+        toast({ title: "Student not found", description: "Refreshing student list...", variant: "destructive" })
+        await fetchStudents()
+      } else {
+        setStudents(prev)
+        toast({ title: "Delete failed", description: getErrorMessage(e), variant: "destructive" })
+      }
     } finally {
       setDeleting(false)
       setDeleteId(null)
@@ -228,12 +243,52 @@ export default function StudentsList() {
         paymentStatus: student.paymentStatus,
         isActive: nextIsActive,
       })
-      toast({ title: `Student ${nextIsActive ? "activated" : "deactivated"}` })
+      toast({ title: nextIsActive ? "Student is now ACTIVE" : "Student is now INACTIVE" })
     } catch (e: any) {
-      setStudents((cur) => cur.map((s) => (s.id === student.id ? { ...s, isActive: prevIsActive } : s)))
-      toast({ title: "Update failed", description: getErrorMessage(e), variant: "destructive" })
+      const status = e?.response?.status
+      if (status === 404) {
+        // Student no longer exists – refresh list to reflect backend
+        setStudents((cur) => cur.filter((s) => s.id !== student.id))
+        toast({ title: "Student not found", description: "Refreshing student list...", variant: "destructive" })
+        await fetchStudents()
+      } else {
+        setStudents((cur) => cur.map((s) => (s.id === student.id ? { ...s, isActive: prevIsActive } : s)))
+        toast({ title: "Update failed", description: getErrorMessage(e), variant: "destructive" })
+      }
     } finally {
       setStatusUpdating((cur) => {
+        const next = { ...cur }
+        delete next[student.id]
+        return next
+      })
+    }
+  }
+
+  const togglePaymentStatus = async (student: StudentRow) => {
+    if (paymentUpdating[student.id]) return
+    const nextStatus = student.paymentStatus === "PAID" ? "UNPAID" : "PAID"
+    const prevStatus = student.paymentStatus
+
+    setPaymentUpdating((cur) => ({ ...cur, [student.id]: true }))
+    setStudents((cur) => cur.map((s) => (s.id === student.id ? { ...s, paymentStatus: nextStatus } : s)))
+
+    try {
+      await api.patch(`/api/students/${student.id}`, {
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        phone: student.phone,
+        gender: student.gender,
+        classId: student.classId,
+        paymentStatus: nextStatus,
+        isActive: student.isActive,
+      })
+      toast({ title: `Payment status updated to ${nextStatus}` })
+    } catch (e: any) {
+      setStudents((cur) => cur.map((s) => (s.id === student.id ? { ...s, paymentStatus: prevStatus } : s)))
+      toast({ title: "Update failed", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setPaymentUpdating((cur) => {
         const next = { ...cur }
         delete next[student.id]
         return next
@@ -356,13 +411,20 @@ export default function StudentsList() {
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge
+                        asChild
                         variant="secondary"
-                        className={`rounded-full shadow-none px-3 font-semibold ${student.paymentStatus === "PAID"
-                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                          : "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
-                          }`}
+                        className={`rounded-full shadow-none px-3 font-semibold transition ${student.paymentStatus === "PAID"
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-150 border-emerald-200"
+                          : "bg-amber-100 text-amber-700 hover:bg-amber-150 border-amber-200"
+                          } ${paymentUpdating[student.id] ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
                       >
-                        {student.paymentStatus}
+                        <button
+                          type="button"
+                          onClick={() => togglePaymentStatus(student)}
+                          disabled={paymentUpdating[student.id]}
+                        >
+                          {student.paymentStatus}
+                        </button>
                       </Badge>
                     </TableCell>
                     <TableCell className="py-4">
@@ -454,7 +516,16 @@ export default function StudentsList() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender</Label>
-                <Input id="gender" value={gender} onChange={(e) => setGender(e.target.value)} placeholder="optional" />
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger id="gender">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Class</Label>
@@ -488,15 +559,13 @@ export default function StudentsList() {
                 </Select>
               </div>
 
-              {editing && (
-                <div className="flex items-center justify-between rounded-lg border p-3 h-[72px]">
-                  <div>
-                    <p className="text-sm font-medium">Active</p>
-                    <p className="text-xs text-muted-foreground">Enable or disable this student.</p>
-                  </div>
-                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+              <div className="flex items-center justify-between rounded-lg border p-3 h-[72px]">
+                <div>
+                  <p className="text-sm font-medium">Active</p>
+                  <p className="text-xs text-muted-foreground">Enable or disable this student.</p>
                 </div>
-              )}
+                <Switch checked={isActive} onCheckedChange={setIsActive} />
+              </div>
             </div>
           </div>
 

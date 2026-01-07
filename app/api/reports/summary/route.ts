@@ -35,13 +35,80 @@ export async function GET() {
   const now = new Date()
   const monthStart = startOfMonth(now)
   const nextMonthStart = addMonths(monthStart, 1)
+  const lastMonthStart = addMonths(monthStart, -1)
 
-  const revenueAgg = await db
-    .collection("Payment")
-    .aggregate([{ $match: { paidAt: { $gte: monthStart, $lt: nextMonthStart } } }, { $group: { _id: null, total: { $sum: "$amount" } } }])
-    .toArray()
+  const [currentRevenueAgg, lastRevenueAgg] = await Promise.all([
+    db
+      .collection("Payment")
+      .aggregate([{ $match: { paidAt: { $gte: monthStart, $lt: nextMonthStart } } }, { $group: { _id: null, total: { $sum: "$amount" } } }])
+      .toArray(),
+    db
+      .collection("Payment")
+      .aggregate([{ $match: { paidAt: { $gte: lastMonthStart, $lt: monthStart } } }, { $group: { _id: null, total: { $sum: "$amount" } } }])
+      .toArray(),
+  ])
 
-  const monthlyRevenue = revenueAgg[0]?.total ? Number(revenueAgg[0].total) : 0
+  const monthlyRevenue = currentRevenueAgg[0]?.total ? Number(currentRevenueAgg[0].total) : 0
+  const lastMonthRevenue = lastRevenueAgg[0]?.total ? Number(lastRevenueAgg[0].total) : 0
+
+  const [largestClassesAgg, absenceRateAgg] = await Promise.all([
+    db
+      .collection("Student")
+      .aggregate([
+        { $group: { _id: "$classId", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 3 },
+      ])
+      .toArray(),
+    db
+      .collection("Attendance")
+      .aggregate([
+        {
+          $group: {
+            _id: "$classId",
+            present: { $sum: { $cond: [{ $eq: ["$status", "PRESENT"] }, 1, 0] } },
+            absent: { $sum: { $cond: [{ $eq: ["$status", "ABSENT"] }, 1, 0] } },
+          },
+        },
+        {
+          $project: {
+            absentRate: {
+              $cond: [
+                { $gt: [{ $add: ["$present", "$absent"] }, 0] },
+                { $multiply: [{ $divide: ["$absent", { $add: ["$present", "$absent"] }] }, 100] },
+                0,
+              ],
+            },
+          },
+        },
+        { $sort: { absentRate: -1 } },
+        { $limit: 3 },
+      ])
+      .toArray(),
+  ])
+
+  const classIdsToFetch = Array.from(new Set([
+    ...largestClassesAgg.map(c => c._id),
+    ...absenceRateAgg.map(c => c._id)
+  ])).filter(Boolean)
+
+  const classDocs = classIdsToFetch.length 
+    ? await db.collection("Class").find({ _id: { $in: classIdsToFetch.map(id => {
+      try { return new (require("mongodb").ObjectId)(id) } catch { return null }
+    }).filter(Boolean) } }).project({ name: 1 }).toArray()
+    : []
+
+  const classLookup = new Map(classDocs.map(c => [c._id.toString(), c.name]))
+
+  const largestClasses = largestClassesAgg.map(c => ({
+    name: classLookup.get(String(c._id)) || "Unknown",
+    students: c.count
+  }))
+
+  const highestAbsenceClasses = absenceRateAgg.map(c => ({
+    name: classLookup.get(String(c._id)) || "Unknown",
+    rate: Math.round(c.absentRate)
+  }))
 
   const weekStart = new Date(now)
   weekStart.setHours(0, 0, 0, 0)
@@ -128,6 +195,9 @@ export async function GET() {
     paidStudents,
     unpaidStudents,
     monthlyRevenue,
+    lastMonthRevenue,
+    largestClasses,
+    highestAbsenceClasses,
     weeklyAttendance,
     enrollmentTrends,
   })

@@ -23,7 +23,17 @@ type EmailLogRow = {
   createdAt: string | null
 }
 
-type TargetType = "CLASS" | "COURSE"
+type TargetType = "CLASS" | "COURSE" | "SINGLE"
+type MessageMode = "EMAIL" | "WHATSAPP"
+
+type StudentOption = { 
+  id: string; 
+  firstName: string; 
+  lastName: string; 
+  phone: string | null; 
+  email: string | null;
+  class?: { name: string } | null 
+}
 
 function getErrorMessage(error: any) {
   return error?.response?.data?.message ?? error?.message ?? "Something went wrong."
@@ -32,13 +42,16 @@ function getErrorMessage(error: any) {
 export default function MessagesCenter() {
   const [classes, setClasses] = useState<ClassOption[]>([])
   const [courses, setCourses] = useState<CourseOption[]>([])
+  const [students, setStudents] = useState<StudentOption[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [reloading, setReloading] = useState(false)
 
+  const [mode, setMode] = useState<MessageMode>("WHATSAPP")
   const [targetType, setTargetType] = useState<TargetType>("CLASS")
   const [classId, setClassId] = useState<string>("")
   const [courseId, setCourseId] = useState<string>("")
+  const [studentId, setStudentId] = useState<string>("")
 
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
@@ -49,9 +62,10 @@ export default function MessagesCenter() {
     if (mode === "initial") setLoading(true)
     if (mode === "refresh") setReloading(true)
     try {
-      const [classesRes, coursesRes] = await Promise.all([
+      const [classesRes, coursesRes, studentsRes] = await Promise.all([
         api.get<ClassOption[]>("/api/classes"),
         api.get<any[]>("/api/courses"),
+        api.get<StudentOption[]>("/api/students"),
       ])
 
       const nextClasses = classesRes.data
@@ -64,9 +78,11 @@ export default function MessagesCenter() {
 
       setClasses(nextClasses)
       setCourses(nextCourses)
+      setStudents(studentsRes.data)
 
       if (nextClasses.length) setClassId((cur) => cur || nextClasses[0].id)
       if (nextCourses.length) setCourseId((cur) => cur || nextCourses[0].id)
+      if (studentsRes.data.length) setStudentId((cur) => cur || studentsRes.data[0].id)
     } catch (e: any) {
       toast({ title: "Failed to load data", description: getErrorMessage(e), variant: "destructive" })
     } finally {
@@ -85,13 +101,17 @@ export default function MessagesCenter() {
       const course = courses.find((c) => c.id === courseId)
       return course ? `Course: ${course.name}` : ""
     }
+    if (targetType === "SINGLE") {
+      const student = students.find((s) => s.id === studentId)
+      return student ? `Student: ${student.firstName} ${student.lastName}` : ""
+    }
     const cls = classes.find((c) => c.id === classId)
     return cls ? `Class: ${cls.name}` : ""
-  }, [targetType, classId, courseId, classes, courses])
+  }, [targetType, classId, courseId, studentId, classes, courses, students])
 
   const send = async () => {
-    if (!subject.trim()) {
-      toast({ title: "Subject is required", variant: "destructive" })
+    if (mode === "EMAIL" && !subject.trim()) {
+      toast({ title: "Subject is required for Email", variant: "destructive" })
       return
     }
     if (!message.trim()) {
@@ -99,30 +119,34 @@ export default function MessagesCenter() {
       return
     }
 
-    const payload =
-      targetType === "COURSE"
-        ? { courseId, subject: subject.trim(), message: message.trim() }
-        : { classId, subject: subject.trim(), message: message.trim() }
-
-    if (targetType === "COURSE" && !courseId) {
-      toast({ title: "Select a course", variant: "destructive" })
-      return
-    }
-    if (targetType === "CLASS" && !classId) {
-      toast({ title: "Select a class", variant: "destructive" })
-      return
-    }
-
     setSending(true)
     try {
-      const res = await api.post<{ sent: number; skipped: number; failed: number; total: number }>(
-        "/api/notifications/email/broadcast",
-        payload,
-      )
-      toast({
-        title: "Messages sent",
-        description: `Total: ${res.data.total} • Sent: ${res.data.sent} • Skipped: ${res.data.skipped} • Failed: ${res.data.failed}`,
-      })
+      if (targetType === "SINGLE") {
+        const endpoint = mode === "EMAIL" ? "/api/notifications/email/single" : "/api/notifications/whatsapp/single"
+        const payload = mode === "EMAIL" 
+          ? { studentId, subject: subject.trim(), message: message.trim() }
+          : { studentId, message: message.trim() }
+
+        await api.post(endpoint, payload)
+        toast({ 
+          title: "Message Sent", 
+          description: `${mode === "WHATSAPP" ? "WhatsApp" : "Email"} notification sent to student.` 
+        })
+      } else {
+        const endpoint = mode === "EMAIL" 
+          ? "/api/notifications/email/broadcast"
+          : "/api/notifications/whatsapp/broadcast"
+        
+        const payload = targetType === "COURSE"
+          ? { courseId, subject: subject.trim(), message: message.trim() }
+          : { classId, subject: subject.trim(), message: message.trim() }
+
+        const res = await api.post<{ sent: number; skipped: number; failed: number; total: number }>(endpoint, payload)
+        toast({
+          title: `${mode} Broadcast Complete`,
+          description: `Total: ${res.data.total} • Sent: ${res.data.sent} • Skipped: ${res.data.skipped} • Failed: ${res.data.failed}`,
+        })
+      }
       setSubject("")
       setMessage("")
       setFailures([])
@@ -163,13 +187,27 @@ export default function MessagesCenter() {
       ) : (
         <Card className="rounded-xl shadow-sm border overflow-hidden">
           <div className="p-4 sm:p-6 border-b bg-muted/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-background text-foreground/80 font-medium px-2.5 py-1">Channel: Email</Badge>
-              {selectedHint ? <span className="text-sm text-muted-foreground font-medium">{selectedHint}</span> : null}
+            <div className="flex items-center gap-2 bg-background p-1 rounded-lg border shadow-sm">
+              <Button 
+                variant={mode === "WHATSAPP" ? "default" : "ghost"} 
+                size="sm" 
+                className="h-8 rounded-md px-4"
+                onClick={() => setMode("WHATSAPP")}
+              >
+                WhatsApp
+              </Button>
+              <Button 
+                variant={mode === "EMAIL" ? "default" : "ghost"} 
+                size="sm" 
+                className="h-8 rounded-md px-4"
+                onClick={() => setMode("EMAIL")}
+              >
+                Email
+              </Button>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Active: {classes.length} Classes • {courses.length} Courses
+                {classes.length} Classes • {students.length} Students
               </span>
               <Button variant="ghost" size="sm" onClick={() => void load("refresh")} disabled={reloading} className="h-8 hover:bg-background/80">
                 {reloading ? (
@@ -186,14 +224,15 @@ export default function MessagesCenter() {
           <div className="p-4 sm:p-6 space-y-6 sm:space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">
               <div className="space-y-2 lg:col-span-4">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Target Type</Label>
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recipient Type</Label>
                 <Select value={targetType} onValueChange={(v) => setTargetType(v as TargetType)}>
                   <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
                     <SelectValue placeholder="Select target" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CLASS">Class</SelectItem>
-                    <SelectItem value="COURSE">Course</SelectItem>
+                    <SelectItem value="CLASS">Whole Class</SelectItem>
+                    <SelectItem value="COURSE">Specific Course</SelectItem>
+                    <SelectItem value="SINGLE">Individual Student</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -215,7 +254,7 @@ export default function MessagesCenter() {
                   </Select>
                   {!classes.length && <p className="text-xs text-muted-foreground">Create a class first.</p>}
                 </div>
-              ) : (
+              ) : targetType === "COURSE" ? (
                 <div className="space-y-2 lg:col-span-8">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Select Course</Label>
                   <Select value={courseId} onValueChange={setCourseId}>
@@ -231,38 +270,66 @@ export default function MessagesCenter() {
                     </SelectContent>
                   </Select>
                   {!courses.length && (
-                    <p className="text-xs text-muted-foreground">
-                      No courses found. Create one in <a className="underline hover:text-primary transition-colors" href="/courses">Courses</a>.
-                    </p>
+                    <p className="text-xs text-muted-foreground">No courses found.</p>
                   )}
+                </div>
+              ) : (
+                <div className="space-y-2 lg:col-span-8">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search Student</Label>
+                  <Select value={studentId} onValueChange={setStudentId}>
+                    <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
+                      <SelectValue placeholder="Select a student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {students.map((s) => (
+                        <SelectItem key={s.id} value={s.id} disabled={mode === "WHATSAPP" ? !s.phone : !s.email}>
+                          <div className="flex flex-col">
+                            <span>{s.firstName} {s.lastName} {s.class ? `(${s.class.name})` : ""}</span>
+                            {mode === "WHATSAPP" && !s.phone && <span className="text-[10px] text-destructive italic">No phone number</span>}
+                            {mode === "EMAIL" && !s.email && <span className="text-[10px] text-destructive italic">No email address</span>}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!students.length && <p className="text-xs text-muted-foreground">No students found.</p>}
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="subject" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subject Line</Label>
-              <Input
-                id="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g. Important Announcement: Exam Schedule"
-                className="h-11 rounded-lg border-muted shadow-sm focus-visible:ring-primary/20"
-              />
-            </div>
+            {mode === "EMAIL" && (
+              <div className="space-y-2">
+                <Label htmlFor="subject" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subject Line</Label>
+                <Input
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="e.g. Important Announcement: Exam Schedule"
+                  className="h-11 rounded-lg border-muted shadow-sm focus-visible:ring-primary/20"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label htmlFor="message" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Message Content</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="message" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Message Content</Label>
+                <Badge variant="secondary" className="text-[10px] h-5 cursor-help" title="Use [[name]] to insert student name">
+                  Tip: Use [[name]] for personalization
+                </Badge>
+              </div>
               <Textarea
                 id="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type your message here..."
+                placeholder={mode === "WHATSAPP" ? "Type WhatsApp message..." : "Type email message..."}
                 rows={8}
                 className="resize-y min-h-[150px] rounded-lg border-muted shadow-sm focus-visible:ring-primary/20 p-4"
               />
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-500/50 inline-block"></span>
-                Recipients must have a valid email address in their profile.
+                <span className={`w-2 h-2 rounded-full inline-block ${mode === "EMAIL" ? "bg-blue-500/50" : "bg-emerald-500/50"}`}></span>
+                {mode === "EMAIL" 
+                  ? "Recipients must have a valid email address." 
+                  : "Recipients must have a valid phone number (WhatsApp)."}
               </p>
             </div>
 

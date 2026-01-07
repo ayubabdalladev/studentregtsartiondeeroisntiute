@@ -48,10 +48,9 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     { returnDocument: "after", projection: { name: 1, email: 1, isActive: 1 } },
   )
 
-  const value = updated?.value
-  if (!value) return NextResponse.json({ message: "Teacher not found" }, { status: 404 })
+  if (!updated) return NextResponse.json({ message: "Teacher not found" }, { status: 404 })
 
-  const teacherId = String(value._id)
+  const teacherId = String(updated._id)
   if (Array.isArray(classIds)) {
     const ids = classIds.filter((x): x is string => typeof x === "string")
     const classFilter = buildIdFilterList(ids)
@@ -71,9 +70,9 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
   return NextResponse.json({
     id: teacherId,
-    name: value.name,
-    email: value.email,
-    isActive: Boolean(value.isActive),
+    name: updated.name,
+    email: updated.email,
+    isActive: Boolean(updated.isActive),
     classes: classes.map((c) => ({ id: c._id.toString(), name: c.name, level: c.level ?? null })),
   })
 }

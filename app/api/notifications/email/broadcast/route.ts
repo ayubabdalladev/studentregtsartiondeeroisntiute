@@ -61,28 +61,31 @@ export async function POST(req: NextRequest) {
   const students = await db
     .collection("Student")
     .find({ classId: resolvedClassId, isActive: true })
-    .project({ email: 1 })
+    .project({ email: 1, firstName: 1 })
     .toArray()
 
-  const template = buildBroadcastEmailTemplate({
-    subject: subject.trim(),
-    message: message.trim(),
-    contextTitle: subject.trim(),
-    contextSubtitle,
-    logoCid: "brandlogo",
-    brandName: process.env.EMAIL_BRAND_NAME ?? "Deero Institute",
-  })
-
   const results = await Promise.all(
-    students.map((s) =>
-      enqueueAndSendEmailMessage({
+    students.map((s) => {
+      const personalSubject = subject.trim().replace(/\[\[name\]\]/g, (s.firstName as string) || "Student")
+      const personalMessage = message.trim().replace(/\[\[name\]\]/g, (s.firstName as string) || "Student")
+      
+      const template = buildBroadcastEmailTemplate({
+        subject: personalSubject,
+        message: personalMessage,
+        contextTitle: personalSubject,
+        contextSubtitle,
+        logoCid: "brandlogo",
+        brandName: process.env.EMAIL_BRAND_NAME ?? "Deero Institute",
+      })
+
+      return enqueueAndSendEmailMessage({
         to: (s.email as string | null | undefined) ?? null,
-        subject: subject.trim(),
+        subject: personalSubject,
         text: template.text,
         html: template.html,
         meta: { kind: "BROADCAST", initiatedBy: session.userId, classId: resolvedClassId!, courseId: resolvedCourseId },
-      }),
-    ),
+      })
+    }),
   )
 
   const sent = results.filter((r) => r.ok && r.status === "SENT").length

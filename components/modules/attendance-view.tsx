@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, Users } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
@@ -40,6 +40,14 @@ type AttendanceRecordsResponse = {
   data: AttendanceRecordRow[]
 }
 
+type AttendanceHistoryResponse = {
+  class: { id: string; name: string }
+  students: Array<{ id: string; name: string }>
+  history: Record<string, Record<string, string>>
+  startDate: string
+  endDate: string
+}
+
 const ALL_CLASS_VALUE = "__all__"
 
 function formatDateInputValue(date: Date) {
@@ -60,9 +68,12 @@ export default function AttendanceView() {
 
   const [summary, setSummary] = useState<AttendanceSummaryResponse | null>(null)
   const [records, setRecords] = useState<AttendanceRecordsResponse | null>(null)
+  const [history, setHistory] = useState<AttendanceHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingRecords, setLoadingRecords] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [activeTab, setActiveTab] = useState<"daily" | "history">("daily")
 
   useEffect(() => {
     const run = async () => {
@@ -113,12 +124,29 @@ export default function AttendanceView() {
     }
   }
 
+  const loadHistory = async () => {
+    if (!selectedClassId || selectedClassId === ALL_CLASS_VALUE) {
+      setHistory(null)
+      return
+    }
+    setLoadingHistory(true)
+    try {
+      const res = await api.get<AttendanceHistoryResponse>(`/api/attendance/history?classId=${selectedClassId}`)
+      setHistory(res.data)
+    } catch (e: any) {
+      toast({ title: "Failed to load history", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
   useEffect(() => {
     if (!date) return
     void loadSummary()
     void loadRecords()
+    if (activeTab === "history") void loadHistory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, selectedClassId])
+  }, [date, selectedClassId, activeTab])
 
   const summaryRows = useMemo(() => summary?.data ?? [], [summary])
   const selectedClass = useMemo(
@@ -217,131 +245,224 @@ export default function AttendanceView() {
         </div>
       </div>
 
-      {loading ? (
-        <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
-          <Spinner className="w-8 h-8 text-primary" />
-          <p>Loading summary...</p>
-        </Card>
-      ) : summaryRows.length === 0 ? (
-        <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
-          <div className="p-4 rounded-full bg-muted">
-            <Download className="w-8 h-8 opacity-50" />
-          </div>
-          <p className="text-lg font-medium">No attendance found</p>
-          <p className="text-sm">Try selecting a different date or class.</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {summaryRows.map((row) => (
-            <Card key={row.class.id} className="p-6 transition-all hover:shadow-md border-muted/60">
-              <div className="flex items-start justify-between mb-6 gap-4">
-                <div className="min-w-0 space-y-1">
-                  <h3 className="text-lg font-bold text-foreground truncate tracking-tight">{row.class.name}</h3>
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      {summary?.date} {row.class.level ? `• ${row.class.level}` : ""}
-                    </p>
-                    {row.teachers.length ? (
-                      <p className="text-xs text-muted-foreground/80 truncate">By {row.teachers[0].name}{row.teachers.length > 1 ? ` +${row.teachers.length - 1}` : ""}</p>
-                    ) : null}
+      {/* Tab Switcher */}
+      <div className="flex gap-2 p-1 bg-muted/50 w-fit rounded-xl border border-muted">
+        <Button 
+          variant={activeTab === "daily" ? "default" : "ghost"} 
+          className="rounded-lg px-6"
+          onClick={() => setActiveTab("daily")}
+        >
+          Daily Summary
+        </Button>
+        <Button 
+          variant={activeTab === "history" ? "default" : "ghost"} 
+          className="rounded-lg px-6"
+          onClick={() => setActiveTab("history")}
+        >
+          Attendance History
+        </Button>
+      </div>
+
+      {activeTab === "daily" ? (
+        <>
+          {loading ? (
+            <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
+              <Spinner className="w-8 h-8 text-primary" />
+              <p>Loading summary...</p>
+            </Card>
+          ) : summaryRows.length === 0 ? (
+            <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
+              <div className="p-4 rounded-full bg-muted">
+                <Download className="w-8 h-8 opacity-50" />
+              </div>
+              <p className="text-lg font-medium">No attendance found</p>
+              <p className="text-sm">Try selecting a different date or class.</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {summaryRows.map((row) => (
+                <Card key={row.class.id} className="p-6 transition-all hover:shadow-md border-muted/60">
+                  <div className="flex items-start justify-between mb-6 gap-4">
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="text-lg font-bold text-foreground truncate tracking-tight">{row.class.name}</h3>
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {summary?.date} {row.class.level ? `• ${row.class.level}` : ""}
+                        </p>
+                        {row.teachers.length ? (
+                          <p className="text-xs text-muted-foreground/80 truncate">By {row.teachers[0].name}{row.teachers.length > 1 ? ` +${row.teachers.length - 1}` : ""}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold tabular-nums ${row.percentage >= 90 ? 'text-emerald-600' : row.percentage >= 70 ? 'text-blue-600' : 'text-amber-600'}`}>
+                      {row.percentage}%
+                    </div>
+                  </div>
+                  <div className="space-y-3 pt-4 border-t border-dashed">
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-muted-foreground font-medium">Present</span>
+                      <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 font-bold tabular-nums px-2.5">
+                        {row.presentCount}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-muted-foreground font-medium">Absent</span>
+                      <Badge variant="secondary" className="bg-rose-50 text-rose-700 hover:bg-rose-50 border-rose-100 font-bold tabular-nums px-2.5">
+                        {row.absentCount}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between text-sm items-center pt-2">
+                      <span className="font-semibold text-foreground">Total Students</span>
+                      <span className="text-foreground font-bold tabular-nums">{row.total}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            {/* Existing Class Records content */}
+            <div className="p-4 sm:p-6 border-b bg-muted/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="text-lg font-bold tracking-tight">Class Records</div>
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <span className="font-medium text-foreground">{selectedClass ? selectedClass.name : selectedClassId === ALL_CLASS_VALUE ? "All classes" : "Select a class"}</span>
+                    <span>•</span>
+                    <span>{date}</span>
                   </div>
                 </div>
-                <div className={`text-2xl font-bold tabular-nums ${row.percentage >= 90 ? 'text-emerald-600' : row.percentage >= 70 ? 'text-blue-600' : 'text-amber-600'}`}>
-                  {row.percentage}%
-                </div>
-              </div>
-              <div className="space-y-3 pt-4 border-t border-dashed">
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground font-medium">Present</span>
-                  <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 font-bold tabular-nums px-2.5">
-                    {row.presentCount}
-                  </Badge>
-                </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground font-medium">Absent</span>
-                  <Badge variant="secondary" className="bg-rose-50 text-rose-700 hover:bg-rose-50 border-rose-100 font-bold tabular-nums px-2.5">
-                    {row.absentCount}
-                  </Badge>
-                </div>
-                <div className="flex justify-between text-sm items-center pt-2">
-                  <span className="font-semibold text-foreground">Total Students</span>
-                  <span className="text-foreground font-bold tabular-nums">{row.total}</span>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b bg-muted/10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-lg font-bold tracking-tight">Class Records</div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <span className="font-medium text-foreground">{selectedClass ? selectedClass.name : selectedClassId === ALL_CLASS_VALUE ? "All classes" : "Select a class"}</span>
-                <span>•</span>
-                <span>{date}</span>
+                {loadingRecords ? (
+                  <Badge variant="outline" className="w-fit gap-2 py-1.5"><Spinner className="w-3 h-3" /> Updating...</Badge>
+                ) : (
+                  <Badge variant="secondary" className="w-fit font-mono">{records?.total ?? 0} records</Badge>
+                )}
               </div>
             </div>
+
             {loadingRecords ? (
-              <Badge variant="outline" className="w-fit gap-2 py-1.5"><Spinner className="w-3 h-3" /> Updating...</Badge>
+              <div className="p-12 flex justify-center text-muted-foreground"><Spinner /></div>
+            ) : !records || records.data.length === 0 ? (
+              <div className="p-12 text-center text-muted-foreground text-sm border-dashed">No records available for this selection.</div>
             ) : (
-              <Badge variant="secondary" className="w-fit font-mono">{records?.total ?? 0} records</Badge>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Student</TableHead>
+                      <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                      <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Teacher</TableHead>
+                      <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell text-right pr-6">Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {records.data.map((r) => (
+                      <TableRow key={r.id} className="hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
+                        <TableCell className="py-4 pl-6 font-medium">
+                          <div className="space-y-0.5">
+                            <div className="text-base text-foreground font-semibold line-clamp-1">{r.student ? `${r.student.firstName} ${r.student.lastName}` : "—"}</div>
+                            <div className="text-xs text-muted-foreground md:hidden truncate flex items-center gap-1.5 pt-1">
+                              <span>By {r.teacher?.name ?? "—"}</span>
+                              <span>•</span>
+                              <span className="font-mono text-[10px]">{r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <Badge
+                            variant="secondary"
+                            className={`rounded-full shadow-none px-3 font-semibold ${r.status === "PRESENT"
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                : "bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200"
+                              }`}
+                          >
+                            {r.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80">{r.teacher?.name ?? "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground text-right pr-6 font-mono">
+                          {r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </div>
-        </div>
-
-        {loadingRecords ? (
-          <div className="p-12 flex justify-center text-muted-foreground"><Spinner /></div>
-        ) : !records || records.data.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground text-sm border-dashed">No records available for this selection.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Student</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Teacher</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell text-right pr-6">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {records.data.map((r) => (
-                  <TableRow key={r.id} className="hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
-                    <TableCell className="py-4 pl-6 font-medium">
-                      <div className="space-y-0.5">
-                        <div className="text-base text-foreground font-semibold line-clamp-1">{r.student ? `${r.student.firstName} ${r.student.lastName}` : "—"}</div>
-                        <div className="text-xs text-muted-foreground md:hidden truncate flex items-center gap-1.5 pt-1">
-                          <span>By {r.teacher?.name ?? "—"}</span>
-                          <span>•</span>
-                          <span className="font-mono text-[10px]">{r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <Badge
-                        variant="secondary"
-                        className={`rounded-full shadow-none px-3 font-semibold ${r.status === "PRESENT"
-                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                            : "bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200"
-                          }`}
-                      >
-                        {r.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80">{r.teacher?.name ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground text-right pr-6 font-mono">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        </>
+      ) : (
+        <Card className="rounded-xl border bg-card shadow-sm overflow-hidden">
+          <div className="p-4 sm:p-6 border-b bg-muted/10">
+            <h3 className="text-lg font-bold">30-Day Attendance Matrix</h3>
+            <p className="text-sm text-muted-foreground">Detailed history for {selectedClass?.name ?? "selected class"}.</p>
           </div>
-        )}
-      </div>
+          {loadingHistory ? (
+            <div className="p-12 flex justify-center text-muted-foreground"><Spinner /></div>
+          ) : !history || !history.students.length ? (
+            <div className="p-12 text-center text-muted-foreground text-sm border-dashed">Select a class to view history.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="py-4 pl-6 sticky left-0 bg-background z-20 min-w-[200px] border-r">Student Name</TableHead>
+                    {(() => {
+                      const dates = []
+                      const curr = new Date(history.startDate)
+                      const end = new Date(history.endDate)
+                      while (curr <= end) {
+                        dates.push(curr.toISOString().split('T')[0])
+                        curr.setDate(curr.getDate() + 1)
+                      }
+                      return dates.reverse().map(d => (
+                        <TableHead key={d} className="text-center text-[10px] font-bold p-2 min-w-[45px] hover:bg-muted/50 transition-colors">
+                          {d.split('-').slice(1).reverse().join('/')}
+                        </TableHead>
+                      ))
+                    })()}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.students.map((s) => (
+                    <TableRow key={s.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="py-3 pl-6 sticky left-0 bg-background z-10 font-bold border-r text-sm truncate max-w-[200px]">
+                        {s.name}
+                      </TableCell>
+                      {(() => {
+                        const dates = []
+                        const curr = new Date(history.startDate)
+                        const end = new Date(history.endDate)
+                        while (curr <= end) {
+                          dates.push(curr.toISOString().split('T')[0])
+                          curr.setDate(curr.getDate() + 1)
+                        }
+                        return dates.reverse().map(d => {
+                          const status = history.history[s.id]?.[d]
+                          return (
+                            <TableCell key={d} className="p-0 text-center">
+                              <div className="flex items-center justify-center h-10 w-full group">
+                                {status === "PRESENT" ? (
+                                  <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" title={`${d}: Present`} />
+                                ) : status === "ABSENT" ? (
+                                  <div className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" title={`${d}: Absent`} />
+                                ) : (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20" title={`${d}: No Record`} />
+                                )}
+                              </div>
+                            </TableCell>
+                          )
+                        })
+                      })()}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   )
 }

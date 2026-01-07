@@ -90,16 +90,15 @@ export async function PATCH(
     { returnDocument: "after" },
   );
 
-  const value = updated?.value;
-  if (!value) {
+  if (!updated) {
     return NextResponse.json({ message: "Class not found" }, { status: 404 });
   }
 
   return NextResponse.json({
-    id: value._id.toString(),
-    name: value.name,
-    level: value.level ?? null,
-    isActive: Boolean(value.isActive),
+    id: updated._id.toString(),
+    name: updated.name,
+    level: updated.level ?? null,
+    isActive: Boolean(updated.isActive),
     teacherId,
   });
 }
@@ -114,8 +113,7 @@ export async function DELETE(
   if (session.role !== "ADMIN") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
   const db = await getDb();
-  const deleted = await db.collection("Class").findOneAndDelete(buildIdFilter(id));
-  const cls = deleted?.value;
+  const cls = await db.collection("Class").findOneAndDelete(buildIdFilter(id));
   if (!cls) {
     return NextResponse.json({ message: "Class not found" }, { status: 404 });
   }
