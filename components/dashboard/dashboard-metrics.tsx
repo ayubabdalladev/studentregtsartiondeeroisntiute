@@ -2,26 +2,40 @@
 
 import { useEffect, useMemo, useState } from "react"
 import {
-  BarChart,
+  Area,
+  AreaChart,
   Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Label,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, BookOpen, Calendar, DollarSign } from "lucide-react"
+import {
+  Users,
+  BookOpen,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  GraduationCap,
+  BarChart3,
+  Wallet,
+} from "lucide-react"
 import { api } from "@/lib/api"
-import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 
 type ReportsSummary = {
   totalStudents: number
@@ -38,8 +52,67 @@ type ReportsSummary = {
   enrollmentTrends: Array<{ label: string; value: number }>
 }
 
+const enrollmentChartConfig = {
+  students: { label: "New Students", color: "var(--chart-1)" },
+} satisfies ChartConfig
+
+const attendanceChartConfig = {
+  present: { label: "Present", color: "var(--chart-1)" },
+  absent: { label: "Absent", color: "var(--chart-2)" },
+} satisfies ChartConfig
+
+const paymentChartConfig = {
+  paid: { label: "Paid", color: "var(--chart-1)" },
+  unpaid: { label: "Unpaid", color: "var(--chart-2)" },
+} satisfies ChartConfig
+
+const classSizeChartConfig = {
+  students: { label: "Students", color: "var(--chart-1)" },
+} satisfies ChartConfig
+
+const absenceChartConfig = {
+  rate: { label: "Absence Rate", color: "var(--chart-2)" },
+} satisfies ChartConfig
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value)
+}
+
+function ChartCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+  className = "",
+}: {
+  title: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <Card className={`border-muted/50 shadow-sm overflow-hidden ${className}`}>
+      <div className="px-6 pt-6 pb-2 flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h3 className="font-semibold text-base text-foreground tracking-tight">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <div className="shrink-0 p-2.5 rounded-xl bg-primary/8 text-primary">
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+      <div className="px-4 pb-6 pt-2">{children}</div>
+    </Card>
+  )
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="flex h-[260px] items-center justify-center rounded-xl border border-dashed border-muted bg-muted/20 text-sm text-muted-foreground">
+      {message}
+    </div>
+  )
 }
 
 export default function DashboardMetrics() {
@@ -64,256 +137,329 @@ export default function DashboardMetrics() {
   }, [])
 
   const metrics = useMemo(() => {
+    const revenueDelta = summary ? summary.monthlyRevenue - summary.lastMonthRevenue : 0
     return [
-      { label: "Total Students", value: summary ? String(summary.totalStudents) : "—", icon: Users, color: "bg-chart-1" },
-      { label: "Total Classes", value: summary ? String(summary.totalClasses) : "—", icon: BookOpen, color: "bg-chart-2" },
+      {
+        label: "Total Students",
+        value: summary ? String(summary.totalStudents) : "—",
+        hint: summary ? `${summary.totalTeachers} teachers` : "",
+        icon: Users,
+        accent: "from-[#1E4497]/15 to-[#1E4497]/5",
+        iconBg: "bg-[#1E4497]",
+      },
+      {
+        label: "Total Classes",
+        value: summary ? String(summary.totalClasses) : "—",
+        hint: "Active groups",
+        icon: BookOpen,
+        accent: "from-[#EB4824]/15 to-[#EB4824]/5",
+        iconBg: "bg-[#EB4824]",
+      },
       {
         label: "Attendance Rate",
         value: summary ? `${summary.attendanceRate.toFixed(1)}%` : "—",
+        hint: "Last 7 days",
         icon: Calendar,
-        color: "bg-chart-3",
+        accent: "from-emerald-500/15 to-emerald-500/5",
+        iconBg: "bg-emerald-600",
       },
       {
         label: "Monthly Revenue",
         value: summary ? formatCurrency(summary.monthlyRevenue) : "—",
-        subValue: summary ? `${summary.monthlyRevenue >= summary.lastMonthRevenue ? "+" : ""}${formatCurrency(summary.monthlyRevenue - summary.lastMonthRevenue)} vs last month` : "",
+        hint: summary
+          ? `${revenueDelta >= 0 ? "+" : ""}${formatCurrency(revenueDelta)} vs last month`
+          : "",
+        hintPositive: revenueDelta >= 0,
         icon: DollarSign,
-        color: "bg-chart-4",
+        accent: "from-violet-500/15 to-violet-500/5",
+        iconBg: "bg-violet-600",
       },
     ]
   }, [summary])
 
-  const enrollmentData = useMemo(() => {
-    return (summary?.enrollmentTrends ?? []).map((p) => ({ month: p.label, students: p.value }))
-  }, [summary])
+  const enrollmentData = useMemo(
+    () => (summary?.enrollmentTrends ?? []).map((p) => ({ month: p.label, students: p.value })),
+    [summary],
+  )
 
-  const attendanceData = useMemo(() => {
-    return (summary?.weeklyAttendance ?? []).map((p) => ({ date: p.label, present: p.present, absent: p.absent }))
-  }, [summary])
+  const attendanceData = useMemo(
+    () => (summary?.weeklyAttendance ?? []).map((p) => ({ day: p.label, present: p.present, absent: p.absent })),
+    [summary],
+  )
 
   const paymentData = useMemo(() => {
+    const paid = summary?.paidStudents ?? 0
+    const unpaid = summary?.unpaidStudents ?? 0
     return [
-      { name: "Paid", value: summary?.paidStudents ?? 0 },
-      { name: "Unpaid", value: summary?.unpaidStudents ?? 0 },
+      { status: "paid", count: paid, fill: "var(--color-paid)" },
+      { status: "unpaid", count: unpaid, fill: "var(--color-unpaid)" },
     ]
   }, [summary])
 
+  const classSizeData = useMemo(
+    () => (summary?.largestClasses ?? []).map((c) => ({ name: c.name, students: c.students })),
+    [summary],
+  )
+
+  const absenceData = useMemo(
+    () => (summary?.highestAbsenceClasses ?? []).map((c) => ({ name: c.name, rate: c.rate })),
+    [summary],
+  )
+
+  const paymentTotal = (summary?.paidStudents ?? 0) + (summary?.unpaidStudents ?? 0)
+  const paidPercent = paymentTotal > 0 ? Math.round(((summary?.paidStudents ?? 0) / paymentTotal) * 100) : 0
+
+  const todayLabel = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Dashboard Overview</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">Quick insights into your school's daily performance.</p>
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-[#1E4497]/10 via-background to-[#EB4824]/5 p-6 sm:p-8">
+        <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-[#1E4497]/10 blur-3xl" />
+        <div className="absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-[#EB4824]/10 blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div className="space-y-2">
+            <Badge variant="secondary" className="rounded-full bg-background/80 backdrop-blur-sm border-primary/20 text-primary font-medium">
+              Admin Dashboard
+            </Badge>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Dashboard Overview</h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
+              Real-time insights into enrollment, attendance, payments, and class performance.
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground font-medium shrink-0">{todayLabel}</p>
+        </div>
       </div>
 
       {loading && (
         <Card className="p-12 border-dashed flex items-center justify-center gap-3 text-muted-foreground bg-muted/5">
           <Spinner className="w-6 h-6 text-primary" />
-          <span>Syncing latest data...</span>
+          <span>Loading dashboard...</span>
         </Card>
       )}
 
       {error && (
-        <Card className="p-6 text-sm text-destructive border-destructive/20 bg-destructive/5 flex items-center gap-3">
+        <Card className="p-6 text-sm text-destructive border-destructive/20 bg-destructive/5">
           <span className="font-semibold">Error:</span> {error}
         </Card>
       )}
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon
-          return (
-            <Card key={index} className="p-6 transition-all hover:shadow-lg hover:-translate-y-0.5 border-muted/60 relative overflow-hidden group">
-              <div className="flex items-start justify-between relative z-10">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{metric.label}</p>
-                  <p className="text-3xl font-extrabold text-foreground tracking-tight tabular-nums">{metric.value}</p>
-                  {"subValue" in metric && metric.subValue && (
-                    <p className={`text-xs font-medium ${summary && summary.monthlyRevenue >= summary.lastMonthRevenue ? "text-emerald-600" : "text-amber-600"}`}>
-                      {metric.subValue}
-                    </p>
-                  )}
+      {!loading && !error && (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
+            {metrics.map((metric) => {
+              const Icon = metric.icon
+              return (
+                <Card
+                  key={metric.label}
+                  className="relative overflow-hidden border-muted/50 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${metric.accent} pointer-events-none`} />
+                  <div className="relative p-5 sm:p-6 flex items-start justify-between gap-4">
+                    <div className="space-y-1.5 min-w-0">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{metric.label}</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight tabular-nums">{metric.value}</p>
+                      {metric.hint && (
+                        <p
+                          className={`text-xs font-medium truncate ${
+                            "hintPositive" in metric
+                              ? metric.hintPositive
+                                ? "text-emerald-600"
+                                : "text-amber-600"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {metric.hint}
+                        </p>
+                      )}
+                    </div>
+                    <div className={`${metric.iconBg} p-3 rounded-xl shadow-sm shrink-0`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Row 1: Enrollment + Payment */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-6">
+            <ChartCard
+              className="xl:col-span-2"
+              title="Enrollment Growth"
+              description="New students registered per month"
+              icon={TrendingUp}
+            >
+              {enrollmentData.length === 0 ? (
+                <EmptyChart message="No enrollment data yet" />
+              ) : (
+                <ChartContainer config={enrollmentChartConfig} className="h-[280px] w-full">
+                  <AreaChart data={enrollmentData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="enrollmentFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-students)" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="var(--color-students)" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border/60" />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={10} />
+                    <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} width={36} />
+                    <ChartTooltip cursor={{ stroke: "var(--border)", strokeWidth: 1 }} content={<ChartTooltipContent />} />
+                    <Area
+                      type="monotone"
+                      dataKey="students"
+                      stroke="var(--color-students)"
+                      strokeWidth={2.5}
+                      fill="url(#enrollmentFill)"
+                      dot={{ fill: "var(--color-students)", r: 4, strokeWidth: 2, stroke: "var(--background)" }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              )}
+            </ChartCard>
+
+            <ChartCard title="Payment Status" description="Paid vs unpaid students" icon={Wallet}>
+              {paymentTotal === 0 ? (
+                <EmptyChart message="No payment records yet" />
+              ) : (
+                <div className="space-y-4">
+                  <ChartContainer config={paymentChartConfig} className="mx-auto h-[220px] w-full max-w-[240px]">
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="status" />} />
+                      <Pie
+                        data={paymentData}
+                        dataKey="count"
+                        nameKey="status"
+                        innerRadius={62}
+                        outerRadius={88}
+                        paddingAngle={4}
+                        strokeWidth={2}
+                        stroke="var(--background)"
+                      >
+                        {paymentData.map((entry) => (
+                          <Cell key={entry.status} fill={entry.fill} />
+                        ))}
+                        <Label
+                          content={({ viewBox }) => {
+                            if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                              return (
+                                <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                                  <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 6} className="fill-foreground text-2xl font-bold">
+                                    {paidPercent}%
+                                  </tspan>
+                                  <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-muted-foreground text-xs">
+                                    Paid
+                                  </tspan>
+                                </text>
+                              )
+                            }
+                          }}
+                        />
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-[#1E4497]/8 border border-[#1E4497]/15 p-3 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#1E4497]">Paid</p>
+                      <p className="text-xl font-bold text-foreground tabular-nums">{summary?.paidStudents ?? 0}</p>
+                    </div>
+                    <div className="rounded-xl bg-[#EB4824]/8 border border-[#EB4824]/15 p-3 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#EB4824]">Unpaid</p>
+                      <p className="text-xl font-bold text-foreground tabular-nums">{summary?.unpaidStudents ?? 0}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className={`${metric.color} p-3 rounded-xl shadow-sm group-hover:scale-110 transition-transform`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-              </div>
-              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-gradient-to-br from-muted/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Card>
-          )
-        })}
-      </div>
+              )}
+            </ChartCard>
+          </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Enrollment Trend */}
-        <Card className="p-6 flex flex-col">
-          <div className="mb-6 space-y-1">
-            <h3 className="font-bold text-lg text-foreground tracking-tight">Top Classes</h3>
-            <p className="text-sm text-muted-foreground">Classes with most students & high absence.</p>
-          </div>
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Largest Classes</h4>
-              {summary?.largestClasses?.map((c, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-muted">
-                  <span className="font-medium text-sm">{c.name}</span>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">{c.students} Students</Badge>
-                </div>
-              ))}
-            </div>
+          {/* Row 2: Attendance */}
+          <ChartCard
+            title="Weekly Attendance"
+            description="Present vs absent — last 7 days"
+            icon={Calendar}
+          >
+            {attendanceData.every((d) => d.present === 0 && d.absent === 0) ? (
+              <EmptyChart message="No attendance records this week" />
+            ) : (
+              <ChartContainer config={attendanceChartConfig} className="h-[300px] w-full">
+                <BarChart data={attendanceData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }} barGap={4}>
+                  <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border/60" />
+                  <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={10} />
+                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} width={36} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="present" fill="var(--color-present)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="absent" fill="var(--color-absent)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </ChartCard>
 
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Highest Absence Rate</h4>
-              {summary?.highestAbsenceClasses?.map((c, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                  <span className="font-medium text-sm">{c.name}</span>
-                  <Badge variant="outline" className="text-destructive border-destructive/20 font-mono">{c.rate}% Absent</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        {/* Enrollment Trend Chart - Moved to its own card or below */}
-        <Card className="p-6 flex flex-col">
-          <div className="mb-6 space-y-1">
-            <h3 className="font-bold text-lg text-foreground tracking-tight">Enrollment Growth</h3>
-            <p className="text-sm text-muted-foreground">New students acquired per month.</p>
-          </div>
-          <div className="h-[300px] w-full mt-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={enrollmentData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
-                <XAxis
-                  dataKey="month"
-                  stroke="var(--muted-foreground)"
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                  fontSize={12}
-                  fontWeight={500}
-                />
-                <YAxis
-                  stroke="var(--muted-foreground)"
-                  tickLine={false}
-                  axisLine={false}
-                  dx={-10}
-                  fontSize={12}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                  }}
-                  itemStyle={{ color: "var(--foreground)", fontSize: 13, fontWeight: 500 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="students"
-                  stroke="var(--chart-1)"
-                  strokeWidth={3}
-                  dot={{ fill: "var(--chart-1)", r: 4, strokeWidth: 2, stroke: "var(--background)" }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Weekly Attendance */}
-        <Card className="p-6 flex flex-col">
-          <div className="mb-6 space-y-1">
-            <h3 className="font-bold text-lg text-foreground tracking-tight">Attendance Overview</h3>
-            <p className="text-sm text-muted-foreground">Weekly presence vs absence comparison.</p>
-          </div>
-          <div className="h-[300px] w-full mt-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={attendanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
-                <XAxis
-                  dataKey="date"
-                  stroke="var(--muted-foreground)"
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                  fontSize={12}
-                  fontWeight={500}
-                />
-                <YAxis
-                  stroke="var(--muted-foreground)"
-                  tickLine={false}
-                  axisLine={false}
-                  dx={-10}
-                  fontSize={12}
-                />
-                <Tooltip
-                  cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                  }}
-                  itemStyle={{ color: "var(--foreground)", fontSize: 13, fontWeight: 500 }}
-                />
-                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                <Bar name="Present" dataKey="present" fill="var(--chart-1)" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                <Bar name="Absent" dataKey="absent" fill="var(--destructive)" radius={[4, 4, 0, 0]} maxBarSize={50} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Payment Status */}
-        <Card className="p-6 flex flex-col">
-          <h3 className="font-bold text-lg text-foreground mb-6 tracking-tight">Payment Status Overview</h3>
-          <div className="flex flex-col items-center justify-between gap-6 h-full">
-            <div className="w-full h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={paymentData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
-                    paddingAngle={5}
+          {/* Row 3: Class insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+            <ChartCard title="Largest Classes" description="Top classes by student count" icon={GraduationCap}>
+              {classSizeData.length === 0 ? (
+                <EmptyChart message="No class data yet" />
+              ) : (
+                <ChartContainer config={classSizeChartConfig} className="h-[260px] w-full">
+                  <BarChart
+                    data={classSizeData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
                   >
-                    <Cell fill="var(--chart-1)" strokeWidth={0} />
-                    <Cell fill="var(--destructive)" strokeWidth={0} />
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                    }}
-                    itemStyle={{ color: "var(--foreground)", fontSize: 13, fontWeight: 500 }}
-                  />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="w-full grid grid-cols-2 gap-3 mt-auto">
-              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col items-center justify-center">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Paid</p>
-                <p className="text-2xl font-black text-emerald-700">{(summary?.paidStudents ?? 0)}</p>
-              </div>
-              <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col items-center justify-center">
-                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Unpaid</p>
-                <p className="text-2xl font-black text-rose-700">{(summary?.unpaidStudents ?? 0)}</p>
-              </div>
-            </div>
+                    <CartesianGrid horizontal={false} strokeDasharray="4 4" className="stroke-border/60" />
+                    <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tickLine={false}
+                      axisLine={false}
+                      width={90}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="students" fill="var(--color-students)" radius={[0, 6, 6, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </ChartCard>
+
+            <ChartCard title="Highest Absence Rate" description="Classes needing attention" icon={BarChart3}>
+              {absenceData.length === 0 ? (
+                <EmptyChart message="No absence data yet" />
+              ) : (
+                <ChartContainer config={absenceChartConfig} className="h-[260px] w-full">
+                  <BarChart
+                    data={absenceData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
+                  >
+                    <CartesianGrid horizontal={false} strokeDasharray="4 4" className="stroke-border/60" />
+                    <XAxis type="number" tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tickLine={false}
+                      axisLine={false}
+                      width={90}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => [`${v}%`, "Absence"]} />} />
+                    <Bar dataKey="rate" fill="var(--color-rate)" radius={[0, 6, 6, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </ChartCard>
           </div>
-        </Card>
-      </div>
+        </>
+      )}
     </div>
   )
 }

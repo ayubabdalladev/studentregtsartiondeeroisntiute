@@ -59,13 +59,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           {/* Mobile Header (Only visible on small screens) */}
           <div className="lg:hidden mb-8 text-center">
             <div className="flex justify-center">
-              <img src="/main logo-01.png" alt="School Logo" className="h-20 w-auto object-contain" />
+              <img src="/images/sodma.png" alt="Sodma Logo" className="h-20 w-auto object-contain" />
             </div>
           </div>
 
           <Card className="p-8 sm:p-10 shadow-2xl border-muted/40 backdrop-blur-sm">
             <div className="mb-6 hidden lg:flex justify-center sm:justify-start">
-              <img src="/main logo-01.png" alt="School Logo" className="h-16 w-auto object-contain" />
+              <img src="/images/sodma.png" alt="Sodma Logo" className="h-16 w-auto object-contain" />
             </div>
             <div className="mb-8 space-y-1.5 text-center sm:text-left">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>

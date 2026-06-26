@@ -34,6 +34,27 @@ export async function GET(
     }
   }
 
+  const shiftId = (cls.shiftId as string | null | undefined) ?? null;
+  let shift: { id: string; name: string; startTime: string | null; endTime: string | null; isActive: boolean } | null = null;
+  if (shiftId) {
+    try {
+      const s = await db
+        .collection("Shift")
+        .findOne(buildIdFilter(shiftId), { projection: { name: 1, startTime: 1, endTime: 1, isActive: 1 } });
+      shift = s
+        ? {
+            id: s._id.toString(),
+            name: s.name,
+            startTime: s.startTime ?? null,
+            endTime: s.endTime ?? null,
+            isActive: Boolean(s.isActive),
+          }
+        : null;
+    } catch {
+      shift = null;
+    }
+  }
+
   const students = await db
     .collection("Student")
     .find({ classId: cls._id.toString() })
@@ -47,6 +68,8 @@ export async function GET(
     isActive: Boolean(cls.isActive),
     teacherId,
     teacher: teacher ?? null,
+    shiftId,
+    shift: shift ?? null,
     students,
   });
 }
@@ -76,6 +99,17 @@ export async function PATCH(
       return NextResponse.json({ message: "Teacher not found" }, { status: 400 });
     }
   }
+
+  const shiftId = body.shiftId ?? null;
+  if (shiftId) {
+    const shift = await db
+      .collection("Shift")
+      .findOne(buildIdFilter(shiftId), { projection: { isActive: 1 } });
+    if (!shift || !shift.isActive) {
+      return NextResponse.json({ message: "Shift not found" }, { status: 400 });
+    }
+  }
+
   const updated = await db.collection("Class").findOneAndUpdate(
     buildIdFilter(id),
     {
@@ -83,6 +117,7 @@ export async function PATCH(
         name: body.name,
         level: body.level ?? null,
         teacherId,
+        shiftId,
         isActive: typeof body.isActive === "boolean" ? body.isActive : Boolean(body.isActive),
         updatedAt: new Date(),
       },
@@ -100,6 +135,7 @@ export async function PATCH(
     level: updated.level ?? null,
     isActive: Boolean(updated.isActive),
     teacherId,
+    shiftId,
   });
 }
 

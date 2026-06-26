@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Pencil, Trash2, Search } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, BookOpen } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
@@ -55,6 +55,7 @@ type CourseRow = {
 }
 
 const NO_TEACHER_VALUE = "__none__"
+const selectContentClass = "z-[200] bg-background border shadow-xl"
 
 function getErrorMessage(error: any) {
   return error?.response?.data?.message ?? error?.message ?? "Something went wrong."
@@ -235,30 +236,39 @@ export default function CoursesList() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Courses & Classes</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Create courses and assign teachers to classes.</p>
+      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-[#1E4497]/10 via-background to-[#EB4824]/5 p-6 sm:p-8">
+        <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-[#1E4497]/10 blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-background/80 border border-primary/15 px-3 py-1 text-xs font-medium text-primary">
+              <BookOpen className="w-3.5 h-3.5" />
+              {filteredCourses.length} course{filteredCourses.length === 1 ? "" : "s"}
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Courses</h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
+              Add subjects (courses) and link them to a class. Simple: name + class + teacher.
+            </p>
+          </div>
+          <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6 shrink-0">
+            <Plus className="w-5 h-5" /> Add Course
+          </Button>
         </div>
-        <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
-          <Plus className="w-5 h-5" /> Add Course
-        </Button>
       </div>
 
-      <div className="bg-card p-4 rounded-xl border shadow-sm">
-        <div className="max-w-md space-y-2">
-          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search Courses</Label>
+      <Card className="p-4 sm:p-5 border-muted/50 shadow-sm">
+        <div className="max-w-xl space-y-2">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search</Label>
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by course name, class, or teacher..."
-              className="pl-10 h-11 rounded-lg border-muted shadow-sm focus-visible:ring-primary/20"
+              placeholder="Course, class, or teacher..."
+              className="pl-10 h-11 rounded-lg bg-background border-muted shadow-sm focus-visible:ring-primary/20"
             />
           </div>
         </div>
-      </div>
+      </Card>
 
       {loading ? (
         <Card className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground border-dashed shadow-sm">
@@ -276,7 +286,7 @@ export default function CoursesList() {
           <p className="text-sm">Try adjusting your search query.</p>
         </Card>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-muted/50 bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
@@ -302,33 +312,35 @@ export default function CoursesList() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell py-4">
-                      <Badge variant="outline" className="font-normal border-muted-foreground/20 text-muted-foreground">
+                    <TableCell className="hidden md:table-cell py-4 align-middle">
+                      <Badge variant="outline" className="rounded-full font-medium capitalize border-primary/20 text-primary bg-primary/5">
                         {course.class?.name ?? "Unassigned"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80">{course.teacher?.name ?? <span className="text-muted-foreground italic">Unassigned</span>}</TableCell>
-                    <TableCell className="hidden lg:table-cell py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-primary/50" />
-                        <span className="font-medium">{course.studentsCount.toLocaleString()}</span>
-                      </div>
+                    <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80 align-middle">
+                      {course.teacher?.name ?? <span className="text-muted-foreground italic">Unassigned</span>}
                     </TableCell>
-                    <TableCell className="py-4">
+                    <TableCell className="hidden lg:table-cell py-4 align-middle">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/50 border border-muted px-2.5 py-0.5 text-sm font-medium tabular-nums">
+                        {course.studentsCount.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-4 align-middle text-center">
                       <Badge
                         variant="secondary"
-                        className={`rounded-full shadow-none px-3 font-semibold ${course.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                        className={`inline-flex min-w-[88px] justify-center rounded-full shadow-none px-3 py-1 text-xs font-semibold ${
+                          course.status === "ACTIVE"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : course.status === "SCHEDULED"
-                              ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200"
-                          }`}
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}
                       >
                         {statusLabel(course.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right py-4 pr-6">
-                      <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <TableCell className="text-right py-4 pr-6 align-middle">
+                      <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -374,17 +386,17 @@ export default function CoursesList() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="courseName">Course Name</Label>
-              <Input id="courseName" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mathematics 101" />
+              <Label htmlFor="courseName">Course name</Label>
+              <Input id="courseName" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mathematics" className="bg-background" />
             </div>
 
             <div className="space-y-2">
               <Label>Class</Label>
               <Select value={classId} onValueChange={setClassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a class" />
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Select class" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className={selectContentClass} position="popper">
                   {classes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -392,66 +404,62 @@ export default function CoursesList() {
                   ))}
                 </SelectContent>
               </Select>
-              {!classes.length && <p className="text-xs text-muted-foreground">Create a class first.</p>}
+              {!classes.length && <p className="text-xs text-muted-foreground">Create a class first in the Classes page.</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label>Teacher</Label>
-              <Select value={teacherId} onValueChange={setTeacherId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Assign a teacher (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_TEACHER_VALUE}>Unassigned</SelectItem>
-                  {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as CourseStatus)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Teacher <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={teacherId} onValueChange={setTeacherId}>
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent className={selectContentClass} position="popper">
+                    <SelectItem value={NO_TEACHER_VALUE}>Unassigned</SelectItem>
+                    {teachers.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={status} onValueChange={(v) => setStatus(v as CourseStatus)}>
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue placeholder="Active" />
+                  </SelectTrigger>
+                  <SelectContent className={selectContentClass} position="popper">
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {!editing && (
-              <div className="space-y-3 rounded-lg border p-3">
+              <div className="rounded-lg border border-dashed border-muted/60 bg-muted/10 p-3 space-y-3">
                 <label className="flex items-center gap-3 text-sm cursor-pointer">
                   <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(Boolean(v))} />
-                  <span className="font-medium">Send email announcement to students</span>
+                  <span>Email students (optional)</span>
                 </label>
                 {sendEmail && (
-                  <div className="space-y-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="emailSubject">Subject</Label>
-                      <Input
-                        id="emailSubject"
-                        value={emailSubject}
-                        onChange={(e) => setEmailSubject(e.target.value)}
-                        placeholder="Example: New class announcement"
-                      />
-                    </div>
-                    <Label htmlFor="emailMessage">Message</Label>
+                  <div className="space-y-2 pt-1">
+                    <Input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Email subject"
+                      className="bg-background"
+                    />
                     <Textarea
-                      id="emailMessage"
                       value={emailMessage}
                       onChange={(e) => setEmailMessage(e.target.value)}
-                      placeholder="Example: New class is opening on Monday at 9:00 AM. Please attend on time."
-                      rows={4}
+                      placeholder="Short message to students..."
+                      rows={3}
+                      className="bg-background resize-none"
                     />
-                    <p className="text-xs text-muted-foreground">Uses student emails from their profiles.</p>
                   </div>
                 )}
               </div>
@@ -462,7 +470,7 @@ export default function CoursesList() {
             <Button variant="secondary" onClick={() => setFormOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={submit} disabled={saving || !classes.length}>
+            <Button onClick={submit} disabled={saving || !classes.length} className="rounded-full px-6">
               {saving ? (
                 <>
                   <Spinner className="mr-2" />

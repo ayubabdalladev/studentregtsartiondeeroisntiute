@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Users } from "lucide-react"
+import { Download, Users, CalendarCheck, History } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -49,6 +51,7 @@ type AttendanceHistoryResponse = {
 }
 
 const ALL_CLASS_VALUE = "__all__"
+const selectContentClass = "z-[200] bg-background border shadow-xl"
 
 function formatDateInputValue(date: Date) {
   const y = date.getFullYear()
@@ -59,6 +62,19 @@ function formatDateInputValue(date: Date) {
 
 function getErrorMessage(error: any) {
   return error?.response?.data?.message ?? error?.message ?? "Something went wrong."
+}
+
+function formatPersonName(firstName: string, lastName: string) {
+  const format = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+  return `${format(firstName)} ${format(lastName)}`.trim()
+}
+
+function statusLabel(status: "PRESENT" | "ABSENT") {
+  return status === "PRESENT" ? "Present" : "Absent"
 }
 
 export default function AttendanceView() {
@@ -154,6 +170,21 @@ export default function AttendanceView() {
     [classes, selectedClassId],
   )
 
+  const dayTotals = useMemo(() => {
+    return summaryRows.reduce(
+      (acc, row) => ({
+        present: acc.present + row.presentCount,
+        absent: acc.absent + row.absentCount,
+      }),
+      { present: 0, absent: 0 },
+    )
+  }, [summaryRows])
+
+  const dayRate = useMemo(() => {
+    const total = dayTotals.present + dayTotals.absent
+    return total > 0 ? Math.round((dayTotals.present / total) * 100) : 0
+  }, [dayTotals])
+
   const downloadCsv = async () => {
     if (!selectedClassId || selectedClassId === ALL_CLASS_VALUE) return
     setDownloading(true)
@@ -199,30 +230,46 @@ export default function AttendanceView() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Attendance Management</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">View and manage teacher-submitted attendance records.</p>
+      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-[#1E4497]/10 via-background to-[#EB4824]/5 p-6 sm:p-8">
+        <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-[#1E4497]/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-background/80 border border-primary/15 px-3 py-1 text-xs font-medium text-primary">
+                <CalendarCheck className="w-3.5 h-3.5" />
+                {dayRate}% attendance today
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+                {dayTotals.present} present
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-medium text-rose-700">
+                {dayTotals.absent} absent
+              </div>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Attendance Management</h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
+              View daily attendance by class, export records, and track 30-day history.
+            </p>
+          </div>
+          <Button
+            className="w-full lg:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6 shrink-0"
+            onClick={downloadCsv}
+            disabled={!selectedClassId || selectedClassId === ALL_CLASS_VALUE || downloading || loading || loadingRecords}
+          >
+            <Download className="w-4 h-4" /> {downloading ? "Preparing..." : "Export CSV"}
+          </Button>
         </div>
-        <Button
-          className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6"
-          onClick={downloadCsv}
-          disabled={!selectedClassId || selectedClassId === ALL_CLASS_VALUE || downloading || loading || loadingRecords}
-        >
-          <Download className="w-4 h-4" /> {downloading ? "Preparing..." : "Export CSV"}
-        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-card p-4 rounded-xl border shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-          <div className="space-y-2 lg:col-span-6">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Class</div>
+      <Card className="p-4 sm:p-5 border-muted/50 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Class</Label>
             <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={loading}>
-              <SelectTrigger className="h-11 rounded-lg border-muted shadow-sm">
+              <SelectTrigger className="h-11 w-full rounded-lg bg-background border-muted shadow-sm">
                 <SelectValue placeholder={loading ? "Loading..." : "Select a class"} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={selectContentClass} position="popper">
                 <SelectItem value={ALL_CLASS_VALUE}>All classes</SelectItem>
                 {classes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
@@ -231,35 +278,36 @@ export default function AttendanceView() {
                 ))}
               </SelectContent>
             </Select>
-            {!classes.length && !loading ? <div className="text-xs text-muted-foreground">Create a class first.</div> : null}
           </div>
-          <div className="space-y-2 lg:col-span-6">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</div>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="attendanceDate" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</Label>
+            <Input
+              id="attendanceDate"
               type="date"
-              className="w-full h-11 px-4 py-2 border border-muted rounded-lg bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              className="h-11 rounded-lg bg-background border-muted shadow-sm"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Tab Switcher */}
-      <div className="flex gap-2 p-1 bg-muted/50 w-fit rounded-xl border border-muted">
-        <Button 
-          variant={activeTab === "daily" ? "default" : "ghost"} 
-          className="rounded-lg px-6"
+      <div className="inline-flex gap-1 p-1 bg-muted/40 rounded-full border border-muted/60">
+        <Button
+          variant={activeTab === "daily" ? "default" : "ghost"}
+          className="rounded-full px-5 gap-2"
           onClick={() => setActiveTab("daily")}
         >
-          Daily Summary
+          <CalendarCheck className="w-4 h-4" />
+          Daily
         </Button>
-        <Button 
-          variant={activeTab === "history" ? "default" : "ghost"} 
-          className="rounded-lg px-6"
+        <Button
+          variant={activeTab === "history" ? "default" : "ghost"}
+          className="rounded-full px-5 gap-2"
           onClick={() => setActiveTab("history")}
         >
-          Attendance History
+          <History className="w-4 h-4" />
+          History
         </Button>
       </div>
 
@@ -281,39 +329,36 @@ export default function AttendanceView() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {summaryRows.map((row) => (
-                <Card key={row.class.id} className="p-6 transition-all hover:shadow-md border-muted/60">
-                  <div className="flex items-start justify-between mb-6 gap-4">
+                <Card key={row.class.id} className="relative p-5 sm:p-6 transition-all hover:shadow-md border-muted/50 shadow-sm overflow-hidden">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#1E4497] to-[#EB4824] opacity-80" />
+                  <div className="flex items-start justify-between mb-5 gap-4 pt-1">
                     <div className="min-w-0 space-y-1">
-                      <h3 className="text-lg font-bold text-foreground truncate tracking-tight">{row.class.name}</h3>
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          {summary?.date} {row.class.level ? `• ${row.class.level}` : ""}
-                        </p>
-                        {row.teachers.length ? (
-                          <p className="text-xs text-muted-foreground/80 truncate">By {row.teachers[0].name}{row.teachers.length > 1 ? ` +${row.teachers.length - 1}` : ""}</p>
-                        ) : null}
-                      </div>
+                      <h3 className="text-lg font-bold text-foreground truncate tracking-tight capitalize">{row.class.name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {row.class.level ? `Level ${row.class.level}` : "No level"}
+                        {row.teachers.length ? ` · ${row.teachers[0].name}` : ""}
+                      </p>
                     </div>
-                    <div className={`text-2xl font-bold tabular-nums ${row.percentage >= 90 ? 'text-emerald-600' : row.percentage >= 70 ? 'text-blue-600' : 'text-amber-600'}`}>
+                    <div
+                      className={`text-xl font-bold tabular-nums shrink-0 ${
+                        row.percentage >= 90 ? "text-emerald-600" : row.percentage >= 70 ? "text-[#1E4497]" : "text-amber-600"
+                      }`}
+                    >
                       {row.percentage}%
                     </div>
                   </div>
-                  <div className="space-y-3 pt-4 border-t border-dashed">
-                    <div className="flex justify-between text-sm items-center">
-                      <span className="text-muted-foreground font-medium">Present</span>
-                      <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 font-bold tabular-nums px-2.5">
-                        {row.presentCount}
-                      </Badge>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 py-2.5 px-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Present</p>
+                      <p className="text-lg font-bold text-emerald-800 tabular-nums">{row.presentCount}</p>
                     </div>
-                    <div className="flex justify-between text-sm items-center">
-                      <span className="text-muted-foreground font-medium">Absent</span>
-                      <Badge variant="secondary" className="bg-rose-50 text-rose-700 hover:bg-rose-50 border-rose-100 font-bold tabular-nums px-2.5">
-                        {row.absentCount}
-                      </Badge>
+                    <div className="rounded-xl bg-rose-50 border border-rose-100 py-2.5 px-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Absent</p>
+                      <p className="text-lg font-bold text-rose-800 tabular-nums">{row.absentCount}</p>
                     </div>
-                    <div className="flex justify-between text-sm items-center pt-2">
-                      <span className="font-semibold text-foreground">Total Students</span>
-                      <span className="text-foreground font-bold tabular-nums">{row.total}</span>
+                    <div className="rounded-xl bg-muted/40 border border-muted py-2.5 px-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</p>
+                      <p className="text-lg font-bold text-foreground tabular-nums">{row.total}</p>
                     </div>
                   </div>
                 </Card>
@@ -321,22 +366,30 @@ export default function AttendanceView() {
             </div>
           )}
 
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            {/* Existing Class Records content */}
-            <div className="p-4 sm:p-6 border-b bg-muted/10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="rounded-xl border border-muted/50 bg-card shadow-sm overflow-hidden">
+            <div className="p-4 sm:p-6 border-b bg-muted/20">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="space-y-1">
-                  <div className="text-lg font-bold tracking-tight">Class Records</div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <span className="font-medium text-foreground">{selectedClass ? selectedClass.name : selectedClassId === ALL_CLASS_VALUE ? "All classes" : "Select a class"}</span>
-                    <span>•</span>
+                  <div className="text-lg font-bold tracking-tight flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    Student Records
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground capitalize">
+                      {selectedClass ? selectedClass.name : selectedClassId === ALL_CLASS_VALUE ? "All classes" : "Select a class"}
+                    </span>
+                    <span className="mx-2">·</span>
                     <span>{date}</span>
                   </div>
                 </div>
                 {loadingRecords ? (
-                  <Badge variant="outline" className="w-fit gap-2 py-1.5"><Spinner className="w-3 h-3" /> Updating...</Badge>
+                  <Badge variant="outline" className="w-fit gap-2 py-1.5 rounded-full">
+                    <Spinner className="w-3 h-3" /> Loading...
+                  </Badge>
                 ) : (
-                  <Badge variant="secondary" className="w-fit font-mono">{records?.total ?? 0} records</Badge>
+                  <Badge variant="secondary" className="w-fit rounded-full font-medium tabular-nums">
+                    {records?.total ?? 0} records
+                  </Badge>
                 )}
               </div>
             </div>
@@ -351,7 +404,7 @@ export default function AttendanceView() {
                   <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Student</TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                      <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center w-[110px]">Status</TableHead>
                       <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Teacher</TableHead>
                       <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell text-right pr-6">Time</TableHead>
                     </TableRow>
@@ -359,28 +412,33 @@ export default function AttendanceView() {
                   <TableBody>
                     {records.data.map((r) => (
                       <TableRow key={r.id} className="hover:bg-muted/40 transition-colors border-b-muted/40 last:border-0">
-                        <TableCell className="py-4 pl-6 font-medium">
+                        <TableCell className="py-4 pl-6 align-middle">
                           <div className="space-y-0.5">
-                            <div className="text-base text-foreground font-semibold line-clamp-1">{r.student ? `${r.student.firstName} ${r.student.lastName}` : "—"}</div>
+                            <div className="text-base text-foreground font-semibold line-clamp-1">
+                              {r.student ? formatPersonName(r.student.firstName, r.student.lastName) : "—"}
+                            </div>
                             <div className="text-xs text-muted-foreground md:hidden truncate flex items-center gap-1.5 pt-1">
-                              <span>By {r.teacher?.name ?? "—"}</span>
-                              <span>•</span>
-                              <span className="font-mono text-[10px]">{r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</span>
+                              <span>{r.teacher?.name ?? "—"}</span>
+                              <span>·</span>
+                              <span className="font-mono text-[10px]">
+                                {r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+                              </span>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="py-4">
+                        <TableCell className="py-4 align-middle text-center">
                           <Badge
                             variant="secondary"
-                            className={`rounded-full shadow-none px-3 font-semibold ${r.status === "PRESENT"
-                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                : "bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200"
-                              }`}
+                            className={`inline-flex min-w-[80px] justify-center rounded-full shadow-none px-3 py-1 text-xs font-semibold ${
+                              r.status === "PRESENT"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-rose-50 text-rose-700 border border-rose-200"
+                            }`}
                           >
-                            {r.status}
+                            {statusLabel(r.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80">{r.teacher?.name ?? "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell py-4 text-sm text-foreground/80 align-middle">{r.teacher?.name ?? "—"}</TableCell>
                         <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground text-right pr-6 font-mono">
                           {r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}
                         </TableCell>
@@ -393,10 +451,24 @@ export default function AttendanceView() {
           </div>
         </>
       ) : (
-        <Card className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <div className="p-4 sm:p-6 border-b bg-muted/10">
-            <h3 className="text-lg font-bold">30-Day Attendance Matrix</h3>
-            <p className="text-sm text-muted-foreground">Detailed history for {selectedClass?.name ?? "selected class"}.</p>
+        <Card className="rounded-xl border border-muted/50 bg-card shadow-sm overflow-hidden">
+          <div className="p-4 sm:p-6 border-b bg-muted/20">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary" />
+                  30-Day History
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1 capitalize">
+                  {selectedClass?.name ?? "Select a single class to view history"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Present</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Absent</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-muted-foreground/30" /> None</span>
+              </div>
+            </div>
           </div>
           {loadingHistory ? (
             <div className="p-12 flex justify-center text-muted-foreground"><Spinner /></div>

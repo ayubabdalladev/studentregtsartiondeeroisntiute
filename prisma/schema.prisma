@@ -50,10 +50,27 @@ model Class {
   teacherId String?   @db.ObjectId
   teacher   User?     @relation("TeacherClasses", fields: [teacherId], references: [id])
 
+  shiftId   String?   @db.ObjectId
+  shift     Shift?    @relation(fields: [shiftId], references: [id])
+
   students  Student[]
   attendances Attendance[] @relation("AttendanceClass")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([shiftId])
+}
+model Shift {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   // e.g. "Morning", "Afternoon"
+  startTime String?  // e.g. "08:00"
+  endTime   String?  // e.g. "12:00"
+  isActive  Boolean  @default(true)
+
+  classes   Class[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 model Student {
   id            String        @id @default(auto()) @map("_id") @db.ObjectId

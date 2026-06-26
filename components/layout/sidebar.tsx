@@ -40,8 +40,8 @@ export default function Sidebar({ isOpen, role, onNavigate }: SidebarProps) {
       {/* Logo Section */}
       <div className="p-4 border-b border-sidebar-border">
         <img
-          src="/main logo-01.png"
-          alt="School Management Logo"
+          src="/images/sodma.png"
+          alt="Sodma Logo"
           className="w-full max-h-20 object-contain mx-auto"
           style={{ display: 'block' }}
         />

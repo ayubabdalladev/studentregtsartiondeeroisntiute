@@ -10,7 +10,7 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Deero School Management System",
+  title: "SODMA School Management System",
   description: "Professional school management dashboard",
   generator: "Ayuub",
   icons: {

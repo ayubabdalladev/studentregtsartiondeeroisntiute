@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Clock, School } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Table,
@@ -51,6 +52,14 @@ type Teacher = {
   email: string
 }
 
+type Shift = {
+  id: string
+  name: string
+  startTime: string | null
+  endTime: string | null
+  isActive: boolean
+}
+
 type ClassRow = {
   id: string
   name: string
@@ -58,18 +67,34 @@ type ClassRow = {
   isActive: boolean
   teacherId?: string | null
   teacher?: Teacher | null
+  shiftId?: string | null
+  shift?: Shift | null
   studentsCount?: number
 }
 
 const NO_TEACHER_VALUE = "__none__"
+const NO_SHIFT_VALUE = "__none__"
+const selectContentClass = "z-[200] bg-background border shadow-xl"
+
+const SHIFT_PRESETS = [
+  { name: "Morning", startTime: "08:00", endTime: "12:00", label: "Subax" },
+  { name: "Afternoon", startTime: "13:00", endTime: "17:00", label: "Galab" },
+  { name: "Evening", startTime: "17:00", endTime: "20:00", label: "Habeen" },
+] as const
 
 function getErrorMessage(error: any) {
   return error?.response?.data?.message ?? error?.message ?? "Something went wrong."
 }
 
+function formatShiftLabel(shift: Shift) {
+  if (shift.startTime && shift.endTime) return `${shift.name} (${shift.startTime} – ${shift.endTime})`
+  return shift.name
+}
+
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [shifts, setShifts] = useState<Shift[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,7 +105,19 @@ export default function ClassesPage() {
   const [name, setName] = useState("")
   const [level, setLevel] = useState("")
   const [teacherId, setTeacherId] = useState<string>(NO_TEACHER_VALUE)
+  const [shiftId, setShiftId] = useState<string>(NO_SHIFT_VALUE)
   const [isActive, setIsActive] = useState(true)
+
+  const [shiftsOpen, setShiftsOpen] = useState(false)
+  const [shiftEditorOpen, setShiftEditorOpen] = useState(false)
+  const [editingShift, setEditingShift] = useState<Shift | null>(null)
+  const [shiftName, setShiftName] = useState("")
+  const [shiftStartTime, setShiftStartTime] = useState("")
+  const [shiftEndTime, setShiftEndTime] = useState("")
+  const [shiftIsActive, setShiftIsActive] = useState(true)
+  const [shiftSaving, setShiftSaving] = useState(false)
+  const [shiftDeleteId, setShiftDeleteId] = useState<string | null>(null)
+  const [shiftDeleting, setShiftDeleting] = useState(false)
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -90,8 +127,17 @@ export default function ClassesPage() {
     setName("")
     setLevel("")
     setTeacherId(NO_TEACHER_VALUE)
+    setShiftId(NO_SHIFT_VALUE)
     setIsActive(true)
     setEditing(null)
+  }
+
+  const resetShiftForm = () => {
+    setShiftName("")
+    setShiftStartTime("")
+    setShiftEndTime("")
+    setShiftIsActive(true)
+    setEditingShift(null)
   }
 
   const openCreate = () => {
@@ -104,6 +150,7 @@ export default function ClassesPage() {
     setName(cls.name ?? "")
     setLevel(cls.level ?? "")
     setTeacherId(cls.teacherId ?? NO_TEACHER_VALUE)
+    setShiftId(cls.shiftId ?? NO_SHIFT_VALUE)
     setIsActive(Boolean(cls.isActive))
     setFormOpen(true)
   }
@@ -134,8 +181,22 @@ export default function ClassesPage() {
     }
   }
 
+  const fetchShifts = async () => {
+    try {
+      const res = await api.get<Shift[]>("/api/shifts?includeInactive=true")
+      setShifts(res.data)
+    } catch (e: any) {
+      toast({
+        title: "Failed to load shifts",
+        description: getErrorMessage(e),
+        variant: "destructive",
+      })
+    }
+  }
+
   useEffect(() => {
     void fetchTeachers()
+    void fetchShifts()
     void fetchClasses()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -152,6 +213,7 @@ export default function ClassesPage() {
         name: name.trim(),
         level: level.trim() ? level.trim() : null,
         teacherId: teacherId === NO_TEACHER_VALUE ? null : teacherId,
+        shiftId: shiftId === NO_SHIFT_VALUE ? null : shiftId,
         isActive,
       }
 
@@ -213,6 +275,7 @@ export default function ClassesPage() {
         name: cls.name,
         level: cls.level,
         teacherId: cls.teacherId,
+        shiftId: cls.shiftId,
         isActive: nextIsActive,
       })
       toast({ title: nextIsActive ? "Class is now ACTIVE" : "Class is now INACTIVE" })
@@ -229,17 +292,143 @@ export default function ClassesPage() {
   }
 
   const rows = useMemo(() => classes, [classes])
+  const activeShifts = useMemo(() => shifts.filter((s) => s.isActive), [shifts])
+
+  const openCreateShift = () => {
+    resetShiftForm()
+    setShiftEditorOpen(true)
+  }
+
+  const openEditShift = (shift: Shift) => {
+    setEditingShift(shift)
+    setShiftName(shift.name)
+    setShiftStartTime(shift.startTime ?? "")
+    setShiftEndTime(shift.endTime ?? "")
+    setShiftIsActive(Boolean(shift.isActive))
+    setShiftEditorOpen(true)
+  }
+
+  const openPresetShift = (preset: (typeof SHIFT_PRESETS)[number]) => {
+    setEditingShift(null)
+    setShiftName(preset.name)
+    setShiftStartTime(preset.startTime)
+    setShiftEndTime(preset.endTime)
+    setShiftIsActive(true)
+    setShiftEditorOpen(true)
+  }
+
+  const quickAddPreset = async (preset: (typeof SHIFT_PRESETS)[number]) => {
+    const exists = shifts.some(
+      (s) => s.name.toLowerCase() === preset.name.toLowerCase() && s.isActive,
+    )
+    if (exists) {
+      toast({ title: `${preset.name} shift already exists` })
+      return
+    }
+
+    setShiftSaving(true)
+    try {
+      await api.post("/api/shifts", {
+        name: preset.name,
+        startTime: preset.startTime,
+        endTime: preset.endTime,
+        isActive: true,
+      })
+      toast({ title: `${preset.label} shift added` })
+      await fetchShifts()
+    } catch (e: any) {
+      toast({ title: "Could not add shift", description: getErrorMessage(e), variant: "destructive" })
+    } finally {
+      setShiftSaving(false)
+    }
+  }
+
+  const saveShift = async () => {
+    if (!shiftName.trim()) {
+      toast({ title: "Shift name is required", variant: "destructive" })
+      return
+    }
+
+    setShiftSaving(true)
+    try {
+      const payload = {
+        name: shiftName.trim(),
+        startTime: shiftStartTime.trim() || null,
+        endTime: shiftEndTime.trim() || null,
+        isActive: shiftIsActive,
+      }
+
+      if (editingShift) {
+        await api.patch(`/api/shifts/${editingShift.id}`, payload)
+        toast({ title: "Shift updated successfully" })
+      } else {
+        await api.post("/api/shifts", payload)
+        toast({ title: "Shift created successfully" })
+      }
+
+      setShiftEditorOpen(false)
+      resetShiftForm()
+      await fetchShifts()
+    } catch (e: any) {
+      toast({
+        title: "Save failed",
+        description: getErrorMessage(e),
+        variant: "destructive",
+      })
+    } finally {
+      setShiftSaving(false)
+    }
+  }
+
+  const confirmDeleteShift = async () => {
+    if (!shiftDeleteId) return
+    setShiftDeleting(true)
+    try {
+      await api.delete(`/api/shifts/${shiftDeleteId}`)
+      toast({ title: "Shift deleted successfully" })
+      if (shiftId === shiftDeleteId) setShiftId(NO_SHIFT_VALUE)
+      await fetchShifts()
+    } catch (e: any) {
+      toast({
+        title: "Delete failed",
+        description: getErrorMessage(e),
+        variant: "destructive",
+      })
+    } finally {
+      setShiftDeleting(false)
+      setShiftDeleteId(null)
+    }
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Manage Classes</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Create, update, and manage course assignments.</p>
+      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-[#1E4497]/10 via-background to-[#EB4824]/5 p-6 sm:p-8">
+        <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-[#1E4497]/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-background/80 border border-primary/15 px-3 py-1 text-xs font-medium text-primary">
+              <School className="w-3.5 h-3.5" />
+              {rows.length} class{rows.length === 1 ? "" : "es"} · {activeShifts.length} shift{activeShifts.length === 1 ? "" : "s"}
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Manage Classes</h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
+              Create classes, assign teachers, and set shifts in a few clicks.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShiftsOpen(true)}
+              className="w-full sm:w-auto rounded-full gap-2 px-6 bg-background/80"
+            >
+              <Clock className="w-5 h-5" /> Shifts
+            </Button>
+            <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
+              <Plus className="w-5 h-5" /> Add Class
+            </Button>
+          </div>
         </div>
-        <Button onClick={openCreate} size="lg" className="w-full sm:w-auto rounded-full shadow-lg hover:shadow-primary/25 transition-all gap-2 px-6">
-          <Plus className="w-5 h-5" /> Add Class
-        </Button>
       </div>
 
       {loading ? (
@@ -269,13 +458,14 @@ export default function ClassesPage() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-muted/50 bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="py-4 pl-6 font-semibold text-xs uppercase tracking-wider text-muted-foreground min-w-[200px]">Class Name</TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell whitespace-nowrap">Level</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Shift</TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Teacher</TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell text-right whitespace-nowrap">Students</TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</TableHead>
@@ -290,26 +480,39 @@ export default function ClassesPage() {
                         <div className="text-base text-foreground font-semibold">{cls.name}</div>
                         <div className="text-xs text-muted-foreground md:hidden flex flex-wrap gap-2">
                           <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wide">Level: {cls.level ?? "—"}</span>
+                          <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wide">Shift: {cls.shift?.name ?? "—"}</span>
                           <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wide">Students: {cls.studentsCount ?? 0}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell py-4 text-muted-foreground">{cls.level ?? "—"}</TableCell>
-                    <TableCell className="py-4 text-sm font-medium">{cls.teacher?.name ?? <span className="text-muted-foreground italic font-normal">Unassigned</span>}</TableCell>
+                    <TableCell className="py-4 text-sm font-medium align-middle">
+                      {cls.shift ? (
+                        <Badge variant="outline" className="rounded-full font-medium border-[#EB4824]/25 text-[#EB4824] bg-[#EB4824]/5">
+                          {formatShiftLabel(cls.shift)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground italic font-normal text-sm">No shift</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-4 text-sm font-medium align-middle">
+                      {cls.teacher?.name ?? <span className="text-muted-foreground italic font-normal">Unassigned</span>}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell text-right py-4 tabular-nums">
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted/50 border border-muted">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary/60"></span>
                         {cls.studentsCount ?? 0}
                       </div>
                     </TableCell>
-                    <TableCell className="py-4">
+                    <TableCell className="py-4 align-middle text-center">
                       <Badge
                         asChild
                         variant="secondary"
-                        className={`rounded-full shadow-none px-3 font-semibold transition ${cls.isActive
-                          ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200"
-                          } ${statusUpdating[cls.id] ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+                        className={`inline-flex min-w-[88px] justify-center rounded-full shadow-none px-3 py-1 text-xs font-semibold transition ${
+                          cls.isActive
+                            ? "bg-[#1E4497]/10 text-[#1E4497] hover:bg-[#1E4497]/15 border border-[#1E4497]/20"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
+                        } ${statusUpdating[cls.id] ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
                       >
                         <button
                           type="button"
@@ -388,12 +591,34 @@ export default function ClassesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Assign Teacher</Label>
+              <Label>Shift</Label>
+              <Select value={shiftId} onValueChange={setShiftId}>
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Select a shift" />
+                </SelectTrigger>
+                <SelectContent className={selectContentClass} position="popper">
+                  <SelectItem value={NO_SHIFT_VALUE}>No shift</SelectItem>
+                  {activeShifts.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {formatShiftLabel(s)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {activeShifts.length === 0 ? (
+                <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setShiftsOpen(true)}>
+                  No shifts yet — tap here to add one
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Teacher</Label>
               <Select value={teacherId} onValueChange={setTeacherId}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full bg-background">
                   <SelectValue placeholder="Select a teacher" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className={selectContentClass} position="popper">
                   <SelectItem value={NO_TEACHER_VALUE}>Unassigned</SelectItem>
                   {teachers.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -442,6 +667,174 @@ export default function ClassesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={shiftsOpen}
+        onOpenChange={(open) => {
+          setShiftsOpen(open)
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Shifts</DialogTitle>
+            <DialogDescription>Quick setup — tap a preset or create your own.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick add</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {SHIFT_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.name}
+                    type="button"
+                    variant="outline"
+                    className="h-auto flex-col items-start gap-1 rounded-xl px-3 py-3 text-left"
+                    disabled={shiftSaving}
+                    onClick={() => void quickAddPreset(preset)}
+                  >
+                    <span className="font-semibold text-sm">{preset.label}</span>
+                    <span className="text-xs text-muted-foreground">{preset.startTime} – {preset.endTime}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your shifts</p>
+              <Button type="button" size="sm" className="rounded-full gap-1.5" onClick={openCreateShift}>
+                <Plus className="w-4 h-4" /> Custom
+              </Button>
+            </div>
+
+            {shifts.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Tap Subax, Galab, or Habeen above to start.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                {shifts.map((shift) => (
+                  <Card key={shift.id} className="p-3 border-muted/60 shadow-none">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{shift.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {shift.startTime && shift.endTime ? `${shift.startTime} – ${shift.endTime}` : "No time set"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Badge variant="secondary" className={shift.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}>
+                          {shift.isActive ? "Active" : "Off"}
+                        </Badge>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditShift(shift)} aria-label="Edit shift">
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setShiftDeleteId(shift.id)} aria-label="Delete shift">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={shiftEditorOpen}
+        onOpenChange={(open) => {
+          setShiftEditorOpen(open)
+          if (!open) resetShiftForm()
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingShift ? "Edit Shift" : "New Shift"}</DialogTitle>
+            <DialogDescription>Name and time — keep it simple.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="shiftName">Name</Label>
+              <Input
+                id="shiftName"
+                value={shiftName}
+                onChange={(e) => setShiftName(e.target.value)}
+                placeholder="e.g. Morning"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="shiftStart">Start</Label>
+                <Input id="shiftStart" type="time" value={shiftStartTime} onChange={(e) => setShiftStartTime(e.target.value)} className="bg-background" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shiftEnd">End</Label>
+                <Input id="shiftEnd" type="time" value={shiftEndTime} onChange={(e) => setShiftEndTime(e.target.value)} className="bg-background" />
+              </div>
+            </div>
+            {!editingShift && (
+              <div className="flex flex-wrap gap-2">
+                {SHIFT_PRESETS.map((preset) => (
+                  <Button key={preset.name} type="button" variant="secondary" size="sm" className="rounded-full" onClick={() => openPresetShift(preset)}>
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {editingShift && (
+              <div className="flex items-center justify-between rounded-lg border border-muted/60 bg-muted/10 p-3">
+                <span className="text-sm font-medium">Active</span>
+                <Switch checked={shiftIsActive} onCheckedChange={setShiftIsActive} />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="secondary" onClick={() => setShiftEditorOpen(false)} disabled={shiftSaving}>
+              Cancel
+            </Button>
+            <Button onClick={saveShift} disabled={shiftSaving} className="rounded-full px-6">
+              {shiftSaving ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Saving…
+                </>
+              ) : editingShift ? (
+                "Save"
+              ) : (
+                "Add Shift"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(shiftDeleteId)} onOpenChange={(open) => !open && setShiftDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete shift?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Shifts assigned to classes cannot be deleted. Remove the shift from all classes first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={shiftDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteShift} disabled={shiftDeleting}>
+              {shiftDeleting ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={Boolean(deleteId)} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
